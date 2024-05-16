@@ -685,7 +685,7 @@ def decode(
     """
     batch_size, seqlen_og = input_ids.shape
     teacher_output_len = teacher_outputs.shape[1] if teacher_outputs is not None else 0
-    if cg:
+    if cg:  # True
         if not hasattr(model, "_decoding_cache"):
             model._decoding_cache = None
         model._decoding_cache = update_graph_cache(
@@ -703,29 +703,31 @@ def decode(
 
     def get_logits(input_ids, inference_params):
         decoding = inference_params.seqlen_offset > 0
-        if decoding:
+        if decoding:  # 第二次后进这
             position_ids = torch.full(
                 (batch_size, 1),
                 inference_params.seqlen_offset,
                 dtype=torch.long,
                 device=input_ids.device,
             )
-        else:
+        else:  # 第一次进这
             position_ids = None
-        if not cg or not decoding:
-            logits = model(
-                input_ids,
-                position_ids=position_ids,
-                inference_params=inference_params,
-                num_last_tokens=1,
+        if not cg or not decoding:  # 第一次进这
+            logits = model(  # 这里调用forward,不用cache全部计算得到cache和最新输出
+                input_ids,  # (1,20)
+                position_ids=position_ids,  # None
+                inference_params=inference_params,  # seqlen_offset=0
+                num_last_tokens=1,  # 只取最后一个词输出
                 return_dict=True,
-                pixel_values=pixel_values,
-            ).logits.squeeze(dim=1)
-        else:
-            logits = model._decoding_cache.run(
-                input_ids, position_ids, inference_params.seqlen_offset
-            ).squeeze(dim=1)
-        return logits[..., :vocab_size] if vocab_size is not None else logits
+                pixel_values=pixel_values,  # 一张图片经两个视觉模型transform后的
+            ).logits
+            logits = logits.squeeze(dim=1)  # （B,l,vocab_size)->（B,vocab_size)  (1,1,50280) -> (1,50280)
+        else:  # 第二次进这
+            logits = model._decoding_cache.run(  # 用cache来开词逐个算单词 input_ids=(1,1)=tensor([[34]], device='cuda:0')  position_ids=(1,1)=tensor([[20]], device='cuda:0')  inference_params.seqlen_offset=20
+                input_ids, position_ids, inference_params.seqlen_offset  # input_ids=(1,1)
+            )
+            logits = logits.squeeze(dim=1)  # (1,1,50280) -> (1,50280)
+        return logits[..., :vocab_size] if vocab_size is not None else logits  # 种操作通常用于在模型输出的logits中，只选择与词汇表大小相对应的部分，以便进行后续的计算或处理, 如果vocab_size是None，那么将返回原始的logits张量，没有进行任何截取操作
 
     def sample_tokens(logits, inference_params):
         if teacher_outputs is None or teacher_output_len <= inference_params.seqlen_offset:
@@ -755,10 +757,11 @@ def decode(
     if max_new_tokens is not None:
         max_length = sequences[-1].shape[1] + max_new_tokens  # override max_length if max_new_tokens is set
     while not should_stop(sequences[-1], inference_params):
-        scores.append(get_logits(sequences[-1], inference_params))
-        inference_params.seqlen_offset += sequences[-1].shape[1]
-        sequences.append(sample_tokens(scores[-1], inference_params))
-    if enable_timing:
+        temp = get_logits(sequences[-1], inference_params)
+        scores.append(temp)  # 这里开始预测词的输出
+        inference_params.seqlen_offset += sequences[-1].shape[1]  # 长度变化
+        sequences.append(sample_tokens(scores[-1], inference_params))  # 将最高预测的词加入进序列
+    if enable_timing:  # 不进入
         end.record()
         if tensor_parallel > 1:
             torch.distributed.barrier()
@@ -854,7 +857,7 @@ def update_graph_cache(
         cache.max_batch_size, cache.max_seqlen = batch_size, max_seqlen
         if hasattr(model, "allocate_inference_cache"):
             inf_cache = model.allocate_inference_cache(batch_size, max_seqlen, dtype)
-        else:
+        else:  # 不进这，这里比源码多了
             headdim = getattr(
                 model.config,
                 "head_dim",
@@ -1689,14 +1692,14 @@ class Mamba(nn.Module):
 
         conv_state, ssm_state = None, None
         if inference_params is not None:
-            conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
-            if inference_params.seqlen_offset > 0:
+            conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)  # conv_state(B,ED,d_conv) ssm_state(B,ED,N)
+            if inference_params.seqlen_offset > 0: # 如果是一个一个推导最新词时，用step
                 # The states are updated inplace
                 out, _, _ = self.step(hidden_states, conv_state, ssm_state)
                 return out
 
         # We do matmul and transpose BLH -> HBL at the same time
-        xz = rearrange(
+        xz = rearrange(  # 计算当前句子（不是推导最新的一个单词时），不用step方式
             self.in_proj.weight @ rearrange(hidden_states, "b l d -> d (b l)"),
             "d (b l) -> b d l",
             l=seqlen,
@@ -1726,7 +1729,8 @@ class Mamba(nn.Module):
             x, z = xz.chunk(2, dim=1)
             # Compute short convolution
             if conv_state is not None:
-                conv_state.copy_(x[:, :, -self.d_conv :])  # Update state (B D W)
+                #conv_state.copy_(x[:, :, -self.d_conv :])  # Update state (B D W)
+                conv_state.copy_(F.pad(x, (self.d_conv - x.shape[-1], 0)))  # Update state (B D W) 根据源码改的 If we just take x[:, :, -self.d_conv :], it will error if seqlen < self.d_conv Instead F.pad will pad with zeros if seqlen < self.d_conv, and truncate otherwise.
             if causal_conv1d_fn is None:
                 x = self.act(self.conv1d(x)[..., :seqlen])
             else:
@@ -1892,12 +1896,12 @@ class Block(nn.Module):
             hidden_states: the sequence to the encoder layer (required).
             residual: hidden_states = Mixer(LN(residual))
         """
-        if not self.fused_add_norm:
+        if not self.fused_add_norm:  # not True = False
             residual = (hidden_states + residual) if residual is not None else hidden_states
             hidden_states = self.norm(residual.to(dtype=self.norm.weight.dtype))
             if self.residual_in_fp32:
                 residual = residual.to(torch.float32)
-        else:
+        else:  # 进入
             fused_add_norm_fn = rms_norm_fn if isinstance(self.norm, RMSNorm) else layer_norm_fn
             hidden_states, residual = fused_add_norm_fn(
                 hidden_states,
@@ -1995,7 +1999,7 @@ class MambaModel(MambaPreTrainedModel):
         super().__init__(config)
         self.residual_in_fp32 = config.residual_in_fp32
 
-        self.embedding = nn.Embedding(config.vocab_size, config.d_model, **factory_kwargs)
+        self.embedding = nn.Embedding(config.vocab_size, config.d_model, **factory_kwargs)  # Embedding(50280, 2560)
 
         # We change the order of residual and layer norm:
         # Instead of LN -> Attn / MLP -> Add, we do:
@@ -2061,13 +2065,13 @@ class MambaModel(MambaPreTrainedModel):
         for kw in kwargs.keys():
             logger.warning(f"Unused keyword {kw} in MambaModel.forward")
 
-        if inputs_embeds is None:
+        if inputs_embeds is None:  # (1,749,2560)
             inputs_embeds = self.embedding(input_ids)
         hidden_states = inputs_embeds
 
         residual = None
         for layer in self.layers:
-            hidden_states, residual = layer(
+            hidden_states, residual = layer(  # 都是（1,749,2560）
                 hidden_states, residual, inference_params=inference_params
             )
         if not self.fused_add_norm:
@@ -2089,7 +2093,7 @@ class MambaModel(MambaPreTrainedModel):
         if not return_dict:
             return hidden_states,
 
-        return BaseModelOutput(last_hidden_state=hidden_states)
+        return BaseModelOutput(last_hidden_state=hidden_states)  # 这里会将hidden_states=(B,L,D)包装成list[(B,L,D)]返回
     
     @property
     def embed_tokens(self):
@@ -2110,7 +2114,7 @@ class MambaForCausalLM(MambaPreTrainedModel, GenerationMixin):
         super().__init__(config)
 
         self.backbone = MambaModel(config, **factory_kwargs)
-        self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False, **factory_kwargs)
+        self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False, **factory_kwargs)  # Linear(in_features=2560, out_features=50280, bias=False)
         
         self.gradient_checkpointing = False
 
@@ -2162,16 +2166,16 @@ class MambaForCausalLM(MambaPreTrainedModel, GenerationMixin):
         # attention_mask, past_key_values, use_cache, output_attentions, output_hidden_states = \
         # attention_mask, past_key_values, use_cache, output_attentions, output_hidden_states
 
-        outputs = self.backbone(input_ids, inputs_embeds, inference_params=inference_params, **backbone_kwargs)
-        hidden_states = outputs[0]
-        if num_last_tokens > 0:
-            hidden_states = hidden_states[:, -num_last_tokens:]
+        outputs = self.backbone(input_ids, inputs_embeds, inference_params=inference_params, **backbone_kwargs)  # 返回的outputs是一个数据class BaseModelOutput
+        hidden_states = outputs[0]  # 只取第一个元素，第一个元素也为（B,L,D）
+        if num_last_tokens > 0:  # num_last_tokens=1时，推导时我们取最后一个
+            hidden_states = hidden_states[:, -num_last_tokens:]  # (B,L,D) -> (B,num_last_tokens=1,D)   (1,1,2560)
 
-        logits = self.lm_head(hidden_states)
+        logits = self.lm_head(hidden_states)  # (B,只取第一个元素,vocab_size)  (1,1,50280)
 
         # Copied from transformers.models.llama.modeling_llama.LlamaForCausalLM.forward
         loss = None
-        if labels is not None:
+        if labels is not None:  # 不进入
             # Shift so that tokens < n predict n
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()

@@ -44,12 +44,12 @@ class CobraVLM(VLM):
         enable_mixed_precision_training: bool = True,
         arch_specifier: str = "gelu-mlp",
     ) -> None:
-        super().__init__(
+        super().__init__(  # 通过VLM基类的构造函数对vision_backbone和llm_backbone进行赋值
             "cobra",
-            model_id,
+            model_id,  # 'cobra+3b'
             vision_backbone,
             llm_backbone,
-            enable_mixed_precision_training=enable_mixed_precision_training,
+            enable_mixed_precision_training=enable_mixed_precision_training,  # True
         )
 
         # Set Weight Initialization Seed for Projector Consistency
@@ -59,7 +59,7 @@ class CobraVLM(VLM):
         self.arch_specifier = arch_specifier
         if arch_specifier == "linear":
             self.projector = LinearProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
-        elif arch_specifier.endswith("fused-gelu-mlp"):
+        elif arch_specifier.endswith("fused-gelu-mlp"):  # arch_specifier = 'no-align+fused-gelu-mlp'
             self.projector = FusedMLPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
         elif arch_specifier.endswith("gelu-mlp"):
             self.projector = MLPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
@@ -121,9 +121,9 @@ class CobraVLM(VLM):
        
     @classmethod
     def from_pretrained(
-        cls,
+        cls,  # <class 'cobra.models.vlms.cobra.CobraVLM'>
         pretrained_checkpoint: Path,
-        model_id: str,
+        model_id: str,  # 'cobra+3b'
         vision_backbone: VisionBackbone,
         llm_backbone: LLMBackbone,
         enable_mixed_precision_training: bool = True,
@@ -139,7 +139,7 @@ class CobraVLM(VLM):
         )
 
         # Load from Checkpoint (Custom --> should load both *projector* and *llm* weights)
-        model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
+        model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]  # pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/3d1aa9101b8276f9c721237e685cc83ef1d0f79f/cobra+3b/checkpoints/latest-checkpoint.pt'
         assert (
             "projector" in model_state_dict and "llm_backbone" in model_state_dict
         ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
@@ -330,8 +330,8 @@ class CobraVLM(VLM):
 
         # Run Visual Feature Extraction
         with torch.set_grad_enabled(self.vision_backbone_requires_grad):
-            if isinstance(pixel_values, dict):
-                patch_features = self.vision_backbone({k: pixel_values[k][multimodal_indices] for k in pixel_values})
+            if isinstance(pixel_values, dict):  # 进这个
+                patch_features = self.vision_backbone({k: pixel_values[k][multimodal_indices] for k in pixel_values})  # 这里将图片经过两个图片模型的输出特征合并了
             elif pixel_values is None:  # For cache phase in mamba's generate()
                 return self.llm_backbone(
                 input_ids=input_ids,
@@ -351,9 +351,9 @@ class CobraVLM(VLM):
                 patch_features = self.vision_backbone(pixel_values[multimodal_indices])
 
         # Projection Logic :: [bsz, num_patches, llm_embed_dim] =>> num_patches = (2 *) (256 + 1) for ViT-L + CLS
-        projected_patch_embeddings = self.projector(patch_features)
+        projected_patch_embeddings = self.projector(patch_features)  # 图像特征projector到LLM （B,L,D)
         projected_patch_attention_mask = None
-        if attention_mask is not None:
+        if attention_mask is not None:  # 不进入
             projected_patch_attention_mask = torch.full(
                 (projected_patch_embeddings.shape[0], projected_patch_embeddings.shape[1]),
                 True,
@@ -362,18 +362,18 @@ class CobraVLM(VLM):
             )
 
         # Get Input Embeddings from LLM Backbone :: [bsz, input_seq_len, llm_embed_dim]
-        input_embeddings = self.llm_backbone.embed_input_ids(input_ids)
+        input_embeddings = self.llm_backbone.embed_input_ids(input_ids)  # 用一个词嵌入处理（B,L) -> (B,L,D)
 
         # Build Multimodal Embeddings (and build resulting attention mask)
-        multimodal_embeddings = torch.cat(
+        multimodal_embeddings = torch.cat(  # 图片特征+文字特征 (B,L,D) (1,749,2560)
             [
-                projected_patch_embeddings,
-                input_embeddings[multimodal_indices, :, :],
+                projected_patch_embeddings,  # (B,L,D1) (1,729,2560)
+                input_embeddings[multimodal_indices, :, :],  # (B,L,D2) (1,20,2560)
             ],
             dim=1,
         )
         multimodal_attention_mask = None
-        if attention_mask is not None:
+        if attention_mask is not None:  # 不进入
             multimodal_attention_mask = torch.cat(
                 [
                     projected_patch_attention_mask,
@@ -385,7 +385,7 @@ class CobraVLM(VLM):
         # [Contract] We assume the first token of `labels` (associated with <BOS>) is already marked as "IGNORE"
         #   => We'll ignore the per-token outputs for each of the patch embeddings as well!
         multimodal_labels = None
-        if labels is not None:
+        if labels is not None:  # 不进入
             projected_patch_labels = torch.full(
                 (projected_patch_embeddings.shape[0], projected_patch_embeddings.shape[1]),
                 IGNORE_INDEX,
@@ -403,15 +403,15 @@ class CobraVLM(VLM):
             [idx for idx in range(len(input_ids)) if idx not in multimodal_indices],
             dtype=torch.long,
             device=multimodal_indices.device,
-        )
+        )  # unimodal_indices = tensor([], device='cuda:0', dtype=torch.int64)
 
         # No "unimodal" data --> Fused == Multimodal
-        if len(unimodal_indices) == 0:
-            fused_embeddings = multimodal_embeddings
-            fused_attention_mask = multimodal_attention_mask
-            fused_labels = multimodal_labels
+        if len(unimodal_indices) == 0:  # 进这个
+            fused_embeddings = multimodal_embeddings  # （B,L,D)
+            fused_attention_mask = multimodal_attention_mask  # None
+            fused_labels = multimodal_labels  # None
 
-        else:
+        else:  # 不进入
             # Otherwise --> Merge w/ unimodal data
 
             # This doesn't matter --> but in the "normal" case this is the embedding of the <PAD> token
@@ -444,7 +444,7 @@ class CobraVLM(VLM):
             fused_labels = torch.vstack([multimodal_labels, unimodal_labels])
 
         # Run LLM Forward --> returns CausalLMOutputWithPast!
-        return self.llm_backbone(
+        res = self.llm_backbone(
             input_ids=None,
             attention_mask=fused_attention_mask,
             position_ids=None,
@@ -458,6 +458,7 @@ class CobraVLM(VLM):
             inference_params=inference_params,
             num_last_tokens=num_last_tokens,
         )
+        return res
 
     # === GenerationMixin Methods ===
     #   => Note: The following methods override the functionality of `transformers.GenerationMixin`; these expect the
@@ -594,7 +595,7 @@ class CobraVLM(VLM):
                 **kwargs
             )
             # fmt: on
-
+        # 忽略原句子，只对预测的内容解码
         generated_text = tokenizer.decode(generated_ids[0, input_ids.shape[1] :], skip_special_tokens=True).strip()
 
         return generated_text

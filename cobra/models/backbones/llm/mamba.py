@@ -34,7 +34,7 @@ MAMBA_MODELS = {
     },
 
     # === Finetuned Mamba Chat Model Based on mamba-2.8b-slimpj ===
-    "mamba-2.8b-zephyr": {
+    "mamba-2.8b-zephyr": {  # 这个
         "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "xiuyul/mamba-2.8b-zephyr"
     },
 }
@@ -50,12 +50,12 @@ class MambaLLMBackbone(HFCausalLLMBackbone):
         use_flash_attention_2: bool = True, # Add for compatibility, Mamba does not have any attention
     ) -> None:
         super().__init__(
-            llm_backbone_id,
-            llm_max_length=llm_max_length,
-            hf_token=hf_token,
-            inference_mode=inference_mode,
+            llm_backbone_id,  # mamba-2.8b-zephyr
+            llm_max_length=llm_max_length,  # 2048
+            hf_token=hf_token,  #
+            inference_mode=inference_mode,  # True
             use_flash_attention_2=False,
-            **MAMBA_MODELS[llm_backbone_id],
+            **MAMBA_MODELS[llm_backbone_id],  # {'hf_hub_path': 'xiuyul/mamba-2.8b-zephyr', 'llm_cls': <class 'cobra.models.mamba.modeling_mamba.MambaForCausalLM'>, 'llm_family': 'mamba'}
         )
 
         self.llm.config.pad_token_id = self.tokenizer.pad_token_id

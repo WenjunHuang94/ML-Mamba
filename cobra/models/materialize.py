@@ -44,7 +44,7 @@ VISION_BACKBONES = {
 
     # === Fused Backbones ===
     "dinoclip-vit-l-336px": {"cls": DinoCLIPViTBackbone, "kwargs": {"default_image_size": 336}},
-    "dinosiglip-vit-so-384px": {"cls": DinoSigLIPViTBackbone, "kwargs": {"default_image_size": 384}},
+    "dinosiglip-vit-so-384px": {"cls": DinoSigLIPViTBackbone, "kwargs": {"default_image_size": 384}},  # 这个
 }
 
 
@@ -53,7 +53,7 @@ LLM_BACKBONES = {
     # === Mamba Backbones ===
     "mamba-2.8b-slimpj": {"cls": MambaLLMBackbone, "kwargs": {}},
     "mamba-2.8b": {"cls": MambaLLMBackbone, "kwargs": {}},
-    "mamba-2.8b-zephyr": {"cls": MambaLLMBackbone, "kwargs": {}},
+    "mamba-2.8b-zephyr": {"cls": MambaLLMBackbone, "kwargs": {}},  # 这个
 }
 
 # fmt: on
@@ -63,7 +63,7 @@ def get_vision_backbone_and_transform(
     vision_backbone_id: str, image_resize_strategy: str
 ) -> Tuple[VisionBackbone, ImageTransform]:
     """Instantiate a Vision Backbone, returning both the nn.Module wrapper class and default Image Transform."""
-    if vision_backbone_id in VISION_BACKBONES:
+    if vision_backbone_id in VISION_BACKBONES:  # vision_backbone_id = "dinosiglip-vit-so-384px"
         vision_cfg = VISION_BACKBONES[vision_backbone_id]
         vision_backbone: VisionBackbone = vision_cfg["cls"](
             vision_backbone_id, image_resize_strategy, **vision_cfg["kwargs"]
@@ -83,12 +83,12 @@ def get_llm_backbone_and_tokenizer(
 ) -> Tuple[LLMBackbone, PreTrainedTokenizerBase]:
     if llm_backbone_id in LLM_BACKBONES:
         llm_cfg = LLM_BACKBONES[llm_backbone_id]
-        llm_backbone: LLMBackbone = llm_cfg["cls"](
-            llm_backbone_id,
-            llm_max_length=llm_max_length,
+        llm_backbone: LLMBackbone = llm_cfg["cls"](  # llm_cfg["cls"] = <class 'cobra.models.backbones.llm.mamba.MambaLLMBackbone'>
+            llm_backbone_id,  # 'mamba-2.8b-zephyr'
+            llm_max_length=llm_max_length,  # 2048
             hf_token=hf_token,
-            inference_mode=inference_mode,
-            **llm_cfg["kwargs"],
+            inference_mode=inference_mode,  # True
+            **llm_cfg["kwargs"],  # {}
         )
         tokenizer = llm_backbone.get_tokenizer()
         return llm_backbone, tokenizer

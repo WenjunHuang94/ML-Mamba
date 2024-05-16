@@ -28,15 +28,15 @@ class VLM(nn.Module, GenerationMixin, ABC):
         enable_mixed_precision_training: bool = True,
     ) -> None:
         super().__init__()
-        self.model_family, self.model_id = model_family, model_id
+        self.model_family, self.model_id = model_family, model_id  # 'cobra', 'cobra+3b'
         self.vision_backbone, self.llm_backbone = vision_backbone, llm_backbone
-        self.enable_mixed_precision_training = enable_mixed_precision_training
+        self.enable_mixed_precision_training = enable_mixed_precision_training  # True
 
         # Instance Attributes for a generic VLM
         self.all_module_keys, self.trainable_module_keys = None, None
 
         # === GenerationMixin Expected Attributes =>> *DO NOT MODIFY* ===
-        self.generation_config = self.llm_backbone.llm.generation_config
+        self.generation_config = self.llm_backbone.llm.generation_config  # None
         self.main_input_name = "input_ids"
 
     @property

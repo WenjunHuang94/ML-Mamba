@@ -47,7 +47,7 @@ class DinoSigLIPViTBackbone(VisionBackbone):
         )
         self.dino_featurizer.eval()
 
-        self.siglip_featurizer: VisionTransformer = timm.create_model(
+        self.siglip_featurizer: VisionTransformer = timm.create_model( # 创建一个名为 self.siglip_featurizer 的实例变量，并将其初始化为一个VisionTransformer模型
             self.siglip_timm_path_or_url, pretrained=True, num_classes=0, img_size=self.default_image_size,
         )
         self.siglip_featurizer.eval()
@@ -55,22 +55,22 @@ class DinoSigLIPViTBackbone(VisionBackbone):
         # Monkey-Patch the `forward()` function of the featurizers to ensure FSDP-compatibility
         #   => Note: By default set `get_intermediate_layers` to return the *SECOND-TO-LAST* layer patches!
         #   => TODO (siddk) Remove after resolution of https://github.com/pytorch/pytorch/issues/109385
-        self.dino_featurizer.forward = unpack_tuple(
+        self.dino_featurizer.forward = unpack_tuple(  # 只要模型中间层的特征就好
             partial(self.dino_featurizer.get_intermediate_layers, n={len(self.dino_featurizer.blocks) - 2})
         )
-        self.siglip_featurizer.forward = unpack_tuple(
+        self.siglip_featurizer.forward = unpack_tuple(  # 取中间层，能提取更好的图片特征
             partial(self.siglip_featurizer.get_intermediate_layers, n={len(self.siglip_featurizer.blocks) - 2})
         )
 
         # Get Configs for _both_ Featurizers =>> Note :: Override default image size for larger resolution models
         self.dino_data_cfg = timm.data.resolve_model_data_config(self.dino_featurizer)
-        self.dino_data_cfg["input_size"] = (3, self.default_image_size, self.default_image_size)
+        self.dino_data_cfg["input_size"] = (3, self.default_image_size, self.default_image_size)  # 修改模型输入尺寸
 
         self.siglip_data_cfg = timm.data.resolve_model_data_config(self.siglip_featurizer)
         self.siglip_data_cfg["input_size"] = (3, self.default_image_size, self.default_image_size)
 
         # Initialize *both* Transforms
-        default_dino_transform = timm.data.create_transform(**self.dino_data_cfg, is_training=False)
+        default_dino_transform = timm.data.create_transform(**self.dino_data_cfg, is_training=False)  # 获取transform
         default_siglip_transform = timm.data.create_transform(**self.siglip_data_cfg, is_training=False)
 
         # Fix =>> SigLIP default transform resizes to *larger* than `self.default_image_size` (crops image)!!
@@ -83,7 +83,7 @@ class DinoSigLIPViTBackbone(VisionBackbone):
             ]
         )
 
-        if self.image_resize_strategy == "resize-naive":
+        if self.image_resize_strategy == "resize-naive":  # 进入这个
             assert isinstance(default_dino_transform, Compose), "Unexpected `default_dino_image_transform`!"
             assert isinstance(default_siglip_transform, Compose), "Unexpected `default_siglip_image_transform`!"
             assert isinstance(dino_resize_transform := default_dino_transform.transforms[0], Resize)
@@ -92,8 +92,8 @@ class DinoSigLIPViTBackbone(VisionBackbone):
             target_size = (self.default_image_size, self.default_image_size)
             dino_transform = Compose(
                 [
-                    Resize(target_size, interpolation=dino_resize_transform.interpolation),
-                    *default_dino_transform.transforms[1:],
+                    Resize(target_size, interpolation=dino_resize_transform.interpolation),  # 修改输入图片大小
+                    *default_dino_transform.transforms[1:],  # 排除第一个变换操作，即 default_dino_transform.transforms[0]，该操作是将图像大小调整为目标大小
                 ]
             )
             siglip_transform = Compose(
@@ -103,7 +103,7 @@ class DinoSigLIPViTBackbone(VisionBackbone):
                 ]
             )
 
-            self.image_transform = DinoSigLIPImageTransform(dino_transform, siglip_transform)
+            self.image_transform = DinoSigLIPImageTransform(dino_transform, siglip_transform)  # 组合了两个transform
 
         elif self.image_resize_strategy == "resize-crop":
             self.image_transform = DinoSigLIPImageTransform(default_dino_transform, default_siglip_transform)

@@ -9,10 +9,10 @@ from typing import Optional
 
 class PromptBuilder(ABC):
     def __init__(self, model_family: str, system_prompt: Optional[str] = None) -> None:
-        self.model_family = model_family
+        self.model_family = model_family  # 'cobra'
 
         # Only some models define a system prompt => let subclasses handle this logic!
-        self.system_prompt = system_prompt
+        self.system_prompt = system_prompt  # None
 
     @abstractmethod
     def add_turn(self, role: str, message: str) -> str: ...

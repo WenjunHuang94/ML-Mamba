@@ -106,13 +106,13 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
         use_flash_attention_2: bool = False,
     ) -> None:
         super().__init__(llm_backbone_id)
-        self.llm_family = llm_family
-        self.llm_max_length = llm_max_length
-        self.inference_mode = inference_mode
+        self.llm_family = llm_family  # "mamba"
+        self.llm_max_length = llm_max_length  # 2048
+        self.inference_mode = inference_mode  # True
 
         # Initialize LLM (downloading from HF Hub if necessary) --> `llm_cls` is the actual {Model}ForCausalLM class!
         #   => Note: We're eschewing use of the AutoModel API so that we can be more explicit about LLM-specific details
-        if not self.inference_mode:
+        if not self.inference_mode:  # Not True=False
             overwatch.info(f"Loading [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]", ctx_level=1)
             self.llm = llm_cls.from_pretrained(
                 hf_hub_path,
@@ -125,10 +125,10 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
             )
 
         # [Contract] `inference_mode` means we're loading from a pretrained checkpoint; no need to load base weights!
-        else:
+        else: # 进这个
             overwatch.info(f"Building empty [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]", ctx_level=1)
-            llm_config = AutoConfig.from_pretrained(hf_hub_path, token=hf_token)
-            self.llm = llm_cls._from_config(llm_config)
+            llm_config = AutoConfig.from_pretrained(hf_hub_path, token=hf_token)  # hf_hub_path = 'xiuyul/mamba-2.8b-zephyr'
+            self.llm = llm_cls._from_config(llm_config)  # 注册MambaForCausalLM 'llm_cls': <class 'cobra.models.mamba.modeling_mamba.MambaForCausalLM'>
             #
             # print("DEBUG EMPTY LLM INITIALIZE")
             # import IPython

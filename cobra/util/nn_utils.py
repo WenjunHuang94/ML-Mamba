@@ -42,7 +42,7 @@ class FusedMLPProjector(nn.Module):
         super().__init__()
         self.initial_projection_dim = fused_vision_dim * 4
         if mlp_type == "fused-gelu-mlp":
-            self.projector = nn.Sequential(
+            self.projector = nn.Sequential(  # 图片特征的总dim长度 -> llm_dim
                 nn.Linear(fused_vision_dim, self.initial_projection_dim, bias=True),
                 nn.GELU(),
                 nn.Linear(self.initial_projection_dim, llm_dim, bias=True),
