@@ -13,6 +13,15 @@ from torch.nn.utils.rnn import pad_sequence
 IGNORE_INDEX = -100
 
 
+'''
+数据集预处理的，特别是在多模态（语言和图像）的训练场景中:
+（1）数据格式化：将输入的instances（每个实例包含input_ids（文本）、labels（目标标签）和pixel_values（图像数据））转换为模型所需的格式。
+它首先对文本部分进行pad_sequence处理，确保所有样本的长度不超过model_max_length，并填充pad_token_id作为填充值
+（2）处理多模态：根据实例中pixel_values的存在与否，将它们整理成一个multimodal_indices列表，用于区分哪些样本是多模态的，哪些是语言模型的纯文本数据。
+对于纯文本样本，它会用dummy_pixel_values填充图像部分
+（3）填充像素值：如果pixel_values是torch.Tensor类型，它会将所有样本的图像数据堆叠成一个大的张量；如果pixel_values是字典类型，
+它会为每个键（如rgb、depth等）创建一个堆叠的张量。对于缺失的图像数据，使用dummy_pixel_values填充
+'''
 @dataclass
 class PaddedCollatorForLanguageModeling:
     model_max_length: int
@@ -42,7 +51,7 @@ class PaddedCollatorForLanguageModeling:
         # === Handle "unimodal" (language-only) vs. "multimodal" ===
 
         # Some examples are "language-only" --> build a Tensor of `multimodal_indices` that we can slice into easily
-        multimodal_indices = torch.tensor(
+        multimodal_indices = torch.tensor(  # 有图片的就是多模态
             [idx for idx in range(len(pixel_values)) if pixel_values[idx] is not None], dtype=torch.long
         )
 

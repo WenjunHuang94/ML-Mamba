@@ -45,9 +45,9 @@ class DinoSigLIPViTBackbone(VisionBackbone):
         self.dino_featurizer: VisionTransformer = timm.create_model(
             self.dino_timm_path_or_url, pretrained=True, num_classes=0, img_size=self.default_image_size,
         )
-        self.dino_featurizer.eval()
+        self.dino_featurizer.eval()  # 不训练
 
-        self.siglip_featurizer: VisionTransformer = timm.create_model( # 创建一个名为 self.siglip_featurizer 的实例变量，并将其初始化为一个VisionTransformer模型
+        self.siglip_featurizer: VisionTransformer = timm.create_model( # 创建一个 Vision Transformer 模型，设置 pretrained=True 参数来加载预训练的权重
             self.siglip_timm_path_or_url, pretrained=True, num_classes=0, img_size=self.default_image_size,
         )
         self.siglip_featurizer.eval()

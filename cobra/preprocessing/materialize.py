@@ -28,25 +28,27 @@ def get_dataset_and_collator(
     default_image_resolution: Tuple[int, int, int],
     padding_side: str = "right",
 ) -> Tuple[Dataset, PaddedCollatorForLanguageModeling]:
-    dataset_cls = DATASET_INITIALIZER[stage]
-    dataset_root_dir = dataset_cfg.dataset_root_dir
-    collator = PaddedCollatorForLanguageModeling(
+
+
+    dataset_cls = DATASET_INITIALIZER[stage]  # <class 'cobra.preprocessing.datasets.datasets.FinetuneDataset'>
+    dataset_root_dir = dataset_cfg.dataset_root_dir  # PosixPath('data')
+    collator = PaddedCollatorForLanguageModeling(  # 对数据进行填充
         tokenizer.model_max_length, tokenizer.pad_token_id, default_image_resolution, padding_side=padding_side
     )
 
     # Switch on `stage`
     if stage == "align":
-        annotation_json, image_dir = dataset_cfg.align_stage_components
+        annotation_json, image_dir = dataset_cfg.align_stage_components  # annotation_json = 'download/llava-laion-cc-sbu-558k/chat.json', image_dir = 'download/llava-laion-cc-sbu-558k'
         dataset = dataset_cls(
             dataset_root_dir / annotation_json, dataset_root_dir / image_dir, image_transform, tokenizer
         )
         return dataset, collator
 
     elif stage == "finetune":
-        annotation_json, image_dir = dataset_cfg.finetune_stage_components
+        annotation_json, image_dir = dataset_cfg.finetune_stage_components  # annotation_json = PosixPath('download/llava-v1.5-instruct/llava_v1_5_mix665k.json')
         dataset = dataset_cls(
-            dataset_root_dir / annotation_json,
-            dataset_root_dir / image_dir,
+            dataset_root_dir / annotation_json,  # /data/download/llava-v1.5-instruct/llava_v1_5_mix665k.json
+            dataset_root_dir / image_dir,  # /data/download/llava-v1.5-instruct
             image_transform,
             tokenizer,
             prompt_builder_fn=prompt_builder_fn,

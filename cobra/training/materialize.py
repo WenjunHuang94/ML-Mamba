@@ -38,7 +38,7 @@ def get_train_strategy(
     worker_init_fn: Optional[Callable[[int], None]] = None,
 ) -> TrainingStrategy:
     if train_strategy in TRAIN_STRATEGIES:
-        strategy_cfg = TRAIN_STRATEGIES[train_strategy]
+        strategy_cfg = TRAIN_STRATEGIES[train_strategy]  # train_strategy=fsdp-full-shard
         strategy = strategy_cfg["cls"](
             vlm=vlm,
             device_id=device_id,

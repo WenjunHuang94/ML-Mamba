@@ -110,11 +110,11 @@ class TrainingStrategy(ABC):
         seed: int = 7,
     ) -> None:
         """Run the training loop for the given `dataset` and `collator`; log losses, results to `metrics`"""
-        if "finetune" in stage and batch_construction_strategy == "split-modality":
+        if "finetune" in stage and batch_construction_strategy == "split-modality": # 进这个
             # Instantiate the split-modality sampler; if you want to extend with other batch construction schemes,
             #   (e.g., grouping by length) =>> can easily add them here!
             modality_lengths = dataset.get_modality_lengths()
-            sampler = SplitModalitySampler(
+            sampler = SplitModalitySampler(   # 用于将数据集中的样本按照模态（例如，图像和文本）和长度进行分组，以便每个设备（如GPU）在训练时看到的样本具有相似的序列长度
                 dataset,
                 modality_lengths,
                 global_batch_size=self.global_batch_size,
@@ -135,13 +135,18 @@ class TrainingStrategy(ABC):
             )
 
         # Create a DataLoader with the initialized sampler, per-device-bsz, and collator
+        # collate_fn参数用于指定数据加载器在每个批次加载数据后如何对数据进行整合。具体来说，collate_fn参数接受一个函数作为输入，
+        # 该函数将被用于对每个批次的数据进行自定义的整合操作，以便将多个样本整合成一个批次的数据。
+        # 通常，collate_fn函数会接收一个包含单个样本的列表，并将其整合成一个包含整个批次数据的张量或其他数据结构。
+        # 这对于处理不同大小或类型的样本数据非常有用，可以根据需要进行自定义的数据整合操作，例如填充、对齐或其他预处理步骤。
         dataloader = DataLoader(
             dataset,
             batch_size=self.per_device_batch_size,
-            sampler=sampler,
-            collate_fn=collator,
-            num_workers=2,
-            worker_init_fn=self.worker_init_fn,
+            sampler=sampler,  # sampler: 可选参数，用于指定数据加载的采样方法，例如随机采样、有放回采样等
+            collate_fn=collator,  # 可选参数，用于指定数据加载器在加载每个批次的数据后如何对数据进行整合
+            # num_workers=2,  # 通过设置 num_workers 来让数据加载过程在多个子进程中并行进行，从而加快数据加载的速度
+            num_workers=1,  # 方便调试用，否则debug时，数据很容易看乱，因为不同进程处理的数据不一样
+            worker_init_fn=self.worker_init_fn,  # 可选参数，用于指定子进程的初始化函数
         )
 
         # Max Steps vs. Epochs Computation
@@ -151,6 +156,9 @@ class TrainingStrategy(ABC):
             self.epochs = 100
 
         # === Train ===
+        # 调试用！！！！！！！
+        self.epochs = 1
+
         status = metrics.get_status()
         with tqdm(
             total=(
@@ -222,9 +230,10 @@ class TrainingStrategy(ABC):
                         status = metrics.push()
 
                         # Check for Termination & Save Final Checkpoint (in case `max_steps` is not None)
-                        if self.max_steps is not None and metrics.global_step >= self.max_steps:
-                            self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
-                            dist.barrier()
+                        #if self.max_steps is not None and metrics.global_step >= self.max_steps:  # self.max_steps值为空，要改掉
+                        if train_idx % 2 == 0:
+                            self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())  # PosixPath('runs/cobra+3b+stage-finetune+x7')
+                            dist.barrier()  # 在分布式环境中同步不同进程之间的操作的函数。当一个进程调用 dist.barrier() 时，它会被阻塞
 
                             return
 
@@ -233,6 +242,9 @@ class TrainingStrategy(ABC):
                         progress.set_description(status)
 
             # Save checkpoint at end each epoch (if `self.max_steps` is None)
-            if self.max_steps is None:
-                self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
-                dist.barrier()
+            #if self.max_steps is None:  # 循环结束都保存
+            #    self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
+            #    dist.barrier()
+            self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
+            dist.barrier()
+            print(22222222222222222222222222222)

@@ -115,9 +115,10 @@ class Metrics:
         # Initialize Trackers
         self.trackers = []
         for tracker_type in active_trackers:
-            if tracker_type == "jsonl":
+            if tracker_type == "jsonl" or tracker_type == "wandb":  # 临时改为这个，避免超时
+            #if tracker_type == "jsonl":
                 tracker = JSONLinesTracker(run_id, run_dir, hparams)
-            elif tracker_type == "wandb":
+            elif tracker_type == "wandb":  # 进这个
                 tracker = WeightsBiasesTracker(
                     run_id, run_dir, hparams, project=wandb_project, entity=wandb_entity, group=self.stage
                 )

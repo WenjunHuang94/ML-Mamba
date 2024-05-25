@@ -215,6 +215,7 @@ class MambaInnerFn(torch.autograd.Function):
         """
              xz: (batch, dim, seqlen)
         """
+        assert causal_conv1d_cuda is not None, "causal_conv1d_cuda is not available. Please install causal-conv1d."
         assert checkpoint_lvl in [0, 1]
         L = xz.shape[-1]
         delta_rank = delta_proj_weight.shape[1]
@@ -230,7 +231,9 @@ class MambaInnerFn(torch.autograd.Function):
         conv1d_weight = rearrange(conv1d_weight, "d 1 w -> d w")
         x, z = xz.chunk(2, dim=1)
         conv1d_bias = conv1d_bias.contiguous() if conv1d_bias is not None else None
-        conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(x, conv1d_weight, conv1d_bias, None, True)
+        conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(
+            x, conv1d_weight, conv1d_bias, None, None, None, True  # 参数数量更新了
+        )
         # We're being very careful here about the layout, to avoid extra transposes.
         # We want delta to have d as the slowest moving dimension
         # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
@@ -283,6 +286,7 @@ class MambaInnerFn(torch.autograd.Function):
     @custom_bwd
     def backward(ctx, dout):
         # dout: (batch, seqlen, dim)
+        assert causal_conv1d_cuda is not None, "causal_conv1d_cuda is not available. Please install causal-conv1d."
         (xz, conv1d_weight, conv1d_bias, x_dbl, x_proj_weight, delta_proj_weight, out_proj_weight,
          conv1d_out, delta, A, B, C, D, delta_bias, scan_intermediates, out) = ctx.saved_tensors
         L = xz.shape[-1]
@@ -292,7 +296,9 @@ class MambaInnerFn(torch.autograd.Function):
         if dout.stride(-1) != 1:
             dout = dout.contiguous()
         if ctx.checkpoint_lvl == 1:
-            conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(x, conv1d_weight, conv1d_bias, None, True)
+            conv1d_out = causal_conv1d_cuda.causal_conv1d_fwd(
+                x, conv1d_weight, conv1d_bias, None, None, None, True
+            )
             delta = rearrange(delta_proj_weight @ x_dbl[:, :delta_rank].t(),
                               "d (b l) -> b d l", l = L)
         # The kernel supports passing in a pre-allocated dz (e.g., in case we want to fuse the
@@ -337,8 +343,8 @@ class MambaInnerFn(torch.autograd.Function):
         dconv1d_out = rearrange(dconv1d_out, "d (b l) -> b d l", b=x.shape[0], l=x.shape[-1])
         # The kernel supports passing in a pre-allocated dx (e.g., in case we want to fuse the
         # backward of conv1d with the backward of chunk).
-        dx, dconv1d_weight, dconv1d_bias = causal_conv1d_cuda.causal_conv1d_bwd(
-            x, conv1d_weight, conv1d_bias, dconv1d_out, None, dx, True
+        dx, dconv1d_weight, dconv1d_bias, *_ = causal_conv1d_cuda.causal_conv1d_bwd(
+            x, conv1d_weight, conv1d_bias, dconv1d_out, None, None, None, dx, False, True
         )
         dconv1d_bias = dconv1d_bias if conv1d_bias is not None else None
         dconv1d_weight = rearrange(dconv1d_weight, "d w -> d 1 w")
@@ -366,11 +372,12 @@ def mamba_inner_ref(
     A, B=None, C=None, D=None, delta_bias=None, B_proj_bias=None,
     C_proj_bias=None, delta_softplus=True
 ):
+    assert causal_conv1d_fn is not None, "causal_conv1d_fn is not available. Please install causal-conv1d."
     L = xz.shape[-1]
     delta_rank = delta_proj_weight.shape[1]
     d_state = A.shape[-1] * (1 if not A.is_complex() else 2)
     x, z = xz.chunk(2, dim=1)
-    x = causal_conv1d_fn(x, rearrange(conv1d_weight, "d 1 w -> d w"), conv1d_bias, "silu")
+    x = causal_conv1d_fn(x, rearrange(conv1d_weight, "d 1 w -> d w"), conv1d_bias, activation="silu")
     # We're being very careful here about the layout, to avoid extra transposes.
     # We want delta to have d as the slowest moving dimension
     # and L as the fastest moving dimension, since those are what the ssm_scan kernel expects.
@@ -1691,7 +1698,7 @@ class Mamba(nn.Module):
         batch, seqlen, dim = hidden_states.shape
 
         conv_state, ssm_state = None, None
-        if inference_params is not None:
+        if inference_params is not None:  # 训练时不进入
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)  # conv_state(B,ED,d_conv) ssm_state(B,ED,N)
             if inference_params.seqlen_offset > 0: # 如果是一个一个推导最新词时，用step
                 # The states are updated inplace
@@ -1710,7 +1717,7 @@ class Mamba(nn.Module):
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
         # In the backward pass we write dx and dz next to each other to avoid torch.cat
         if self.use_fast_path and inference_params is None:  # Doesn't support outputting the states
-            out = mamba_inner_fn(
+            out = mamba_inner_fn(  # 训练时进入    这里面的一维卷积更新了，所以代码也更新了
                 xz,
                 self.conv1d.weight,
                 self.conv1d.bias,
@@ -2167,25 +2174,26 @@ class MambaForCausalLM(MambaPreTrainedModel, GenerationMixin):
         # attention_mask, past_key_values, use_cache, output_attentions, output_hidden_states
 
         outputs = self.backbone(input_ids, inputs_embeds, inference_params=inference_params, **backbone_kwargs)  # 返回的outputs是一个数据class BaseModelOutput
-        hidden_states = outputs[0]  # 只取第一个元素，第一个元素也为（B,L,D）
-        if num_last_tokens > 0:  # num_last_tokens=1时，推导时我们取最后一个
+        hidden_states = outputs[0]  # 只取第一个元素，第一个元素也为（B,L,D）！！！
+        if num_last_tokens > 0:  # num_last_token>0 时，推导时我们取最后一个
             hidden_states = hidden_states[:, -num_last_tokens:]  # (B,L,D) -> (B,num_last_tokens=1,D)   (1,1,2560)
 
         logits = self.lm_head(hidden_states)  # (B,只取第一个元素,vocab_size)  (1,1,50280)
 
         # Copied from transformers.models.llama.modeling_llama.LlamaForCausalLM.forward
         loss = None
-        if labels is not None:  # 不进入
+        if labels is not None:  # 训练时才进入
             # Shift so that tokens < n predict n
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            shift_logits = shift_logits.view(-1, self.config.vocab_size)
-            shift_labels = shift_labels.view(-1)
+            # print('labels[0,-200:] = ', labels[0,-200:])
+            loss_fct = CrossEntropyLoss()  # CrossEntropyLoss函数中，ignore_index默认值是-100，不计算这个的损失
+            shift_logits = shift_logits.view(-1, self.config.vocab_size)  # （B,L,vocab_size) -> （B*L,vocab_size)
+            shift_labels = shift_labels.view(-1)  # （B,L) -> （B*L)
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
-            loss = loss_fct(shift_logits, shift_labels)
+            loss = loss_fct(shift_logits, shift_labels)  # # 训练计算损失的时候，实际上没有用到attention_mask，并且忽略-100的值不计算损失
 
         # if not return_dict:
         #     output = (logits,) + outputs[1:]

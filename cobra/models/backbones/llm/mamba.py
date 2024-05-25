@@ -53,7 +53,7 @@ class MambaLLMBackbone(HFCausalLLMBackbone):
             llm_backbone_id,  # mamba-2.8b-zephyr
             llm_max_length=llm_max_length,  # 2048
             hf_token=hf_token,  #
-            inference_mode=inference_mode,  # True
+            inference_mode=inference_mode,  # 训练时传入False，generate时值传为True
             use_flash_attention_2=False,
             **MAMBA_MODELS[llm_backbone_id],  # {'hf_hub_path': 'xiuyul/mamba-2.8b-zephyr', 'llm_cls': <class 'cobra.models.mamba.modeling_mamba.MambaForCausalLM'>, 'llm_family': 'mamba'}
         )

@@ -223,8 +223,22 @@ class CobraVLM(VLM):
         """Load weights from checkpoint (if required by the given stage)."""
         assert stage in {"align", "finetune", "full-finetune"}, f"Stage {stage} is not supported!"
 
+        # 自己加的：
+        # （1）原来的只加载了Vision模块 + mamba模块预训练参数，MLP没有加载预训练
+        # （2）改为加载最新自己训练的checkpoint
+        # if pretrained_checkpoint is not None:
+        #     model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
+        #     assert (
+        #             "projector" in model_state_dict and "llm_backbone" in model_state_dict
+        #     ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
+        #
+        #     self.projector.load_state_dict(model_state_dict["projector"])
+        #     self.llm_backbone.load_state_dict(model_state_dict["llm_backbone"])
+        #
+        #     return
+
         # If we're running a `no-align` architecture, we're good!
-        if self.arch_specifier.startswith("no-align"):
+        if self.arch_specifier.startswith("no-align"):  # arch_specifier = 'no-align+fused-gelu-mlp'. 原来的在这里退出，没有加载checkpoint!!!
             overwatch.info(
                 f"CobraVLM with `{self.arch_specifier = }` does not require pretrained weights!", ctx_level=1
             )
@@ -329,11 +343,11 @@ class CobraVLM(VLM):
             )
 
         # Run Visual Feature Extraction
-        with torch.set_grad_enabled(self.vision_backbone_requires_grad):
+        with torch.set_grad_enabled(self.vision_backbone_requires_grad):  # 动态设置是否启用梯度计算
             if isinstance(pixel_values, dict):  # 进这个
                 patch_features = self.vision_backbone({k: pixel_values[k][multimodal_indices] for k in pixel_values})  # 这里将图片经过两个图片模型的输出特征合并了
             elif pixel_values is None:  # For cache phase in mamba's generate()
-                return self.llm_backbone(
+                return self.llm_backbone(  # 如果没有图片，直接生成答案
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 position_ids=None,
@@ -353,7 +367,7 @@ class CobraVLM(VLM):
         # Projection Logic :: [bsz, num_patches, llm_embed_dim] =>> num_patches = (2 *) (256 + 1) for ViT-L + CLS
         projected_patch_embeddings = self.projector(patch_features)  # 图像特征projector到LLM （B,L,D)
         projected_patch_attention_mask = None
-        if attention_mask is not None:  # 不进入
+        if attention_mask is not None:  # 训练时进入
             projected_patch_attention_mask = torch.full(
                 (projected_patch_embeddings.shape[0], projected_patch_embeddings.shape[1]),
                 True,
@@ -373,11 +387,11 @@ class CobraVLM(VLM):
             dim=1,
         )
         multimodal_attention_mask = None
-        if attention_mask is not None:  # 不进入
+        if attention_mask is not None:  # 训练时进入
             multimodal_attention_mask = torch.cat(
                 [
-                    projected_patch_attention_mask,
-                    attention_mask[multimodal_indices, :],
+                    projected_patch_attention_mask,  # (B,L)
+                    attention_mask[multimodal_indices, :],  # (B,L)
                 ],
                 dim=1,
             )
@@ -385,10 +399,10 @@ class CobraVLM(VLM):
         # [Contract] We assume the first token of `labels` (associated with <BOS>) is already marked as "IGNORE"
         #   => We'll ignore the per-token outputs for each of the patch embeddings as well!
         multimodal_labels = None
-        if labels is not None:  # 不进入
+        if labels is not None:  # 训练时进入
             projected_patch_labels = torch.full(
                 (projected_patch_embeddings.shape[0], projected_patch_embeddings.shape[1]),
-                IGNORE_INDEX,
+                IGNORE_INDEX,  # 表示忽略这个标签，训练计算损失时不算图片的预测部分
                 dtype=labels.dtype,
                 device=labels.device,
             )
@@ -399,17 +413,17 @@ class CobraVLM(VLM):
         # === Add Unimodal Handling ===
 
         # Create Fused Embeddings, Attention Mask, and Labels by Merging with "unimodal" Inputs (if applicable)
-        unimodal_indices = torch.tensor(
+        unimodal_indices = torch.tensor(  # 单模态数据的idx
             [idx for idx in range(len(input_ids)) if idx not in multimodal_indices],
             dtype=torch.long,
             device=multimodal_indices.device,
         )  # unimodal_indices = tensor([], device='cuda:0', dtype=torch.int64)
 
         # No "unimodal" data --> Fused == Multimodal
-        if len(unimodal_indices) == 0:  # 进这个
+        if len(unimodal_indices) == 0:  # 进这个,表示全是多模态数据，没有单模态数据
             fused_embeddings = multimodal_embeddings  # （B,L,D)
-            fused_attention_mask = multimodal_attention_mask  # None
-            fused_labels = multimodal_labels  # None
+            fused_attention_mask = multimodal_attention_mask
+            fused_labels = multimodal_labels
 
         else:  # 不进入
             # Otherwise --> Merge w/ unimodal data
@@ -446,7 +460,7 @@ class CobraVLM(VLM):
         # Run LLM Forward --> returns CausalLMOutputWithPast!
         res = self.llm_backbone(
             input_ids=None,
-            attention_mask=fused_attention_mask,
+            attention_mask=fused_attention_mask,  # 训练计算损失的时候，实际上没有用到
             position_ids=None,
             past_key_values=past_key_values,
             inputs_embeds=fused_embeddings,

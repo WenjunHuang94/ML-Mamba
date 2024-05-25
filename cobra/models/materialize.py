@@ -87,7 +87,7 @@ def get_llm_backbone_and_tokenizer(
             llm_backbone_id,  # 'mamba-2.8b-zephyr'
             llm_max_length=llm_max_length,  # 2048
             hf_token=hf_token,
-            inference_mode=inference_mode,  # True
+            inference_mode=inference_mode,  # 训练时传入False，generate时值传为True
             **llm_cfg["kwargs"],  # {}
         )
         tokenizer = llm_backbone.get_tokenizer()

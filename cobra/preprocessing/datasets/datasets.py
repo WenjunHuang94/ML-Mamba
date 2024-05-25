@@ -80,7 +80,7 @@ class AlignDataset(Dataset[Dict[str, torch.Tensor]]):
         labels = copy.deepcopy(input_ids)
 
         # Set the <BOS> token's label to IGNORE_INDEX (since we're inserting the image patches right after)
-        labels[0] = IGNORE_INDEX
+        labels[0] = IGNORE_INDEX  # 将标签的第一个位置设置为IGNORE_INDEX，表示在计算损失时忽略这个位置的值
 
         # Process Image --> get "pixel_values" (will either be a torch.Tensor OR a Dict[str,torch.Tensor])
         pixel_values = self.image_transform(Image.open(self.image_dir / image_path).convert("RGB"))
@@ -110,7 +110,7 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
         prompt_builder_fn: Type[PromptBuilder],
     ) -> None:
         super().__init__()
-        self.instruct_json, self.image_dir = instruct_json, image_dir
+        self.instruct_json, self.image_dir = instruct_json, image_dir  # data/download/llava-v1.5-instruct/llava_v1_5_mix665k.json
         self.image_transform, self.tokenizer = image_transform, tokenizer
         self.prompt_builder_fn = prompt_builder_fn
         self.dataset_type = "finetune"
@@ -118,8 +118,10 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
         # Load Instruct JSON
         with open(self.instruct_json, "r") as f:
             self.examples = json.load(f)
+            #self.examples = self.examples[:32]
+            #self.examples
 
-    # === Unimodal + Multimodal Handling ===
+            # === Unimodal + Multimodal Handling ===
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         """
         Unlike the *align* stage handling, for the *finetune* stage, we actually need to handle multiple "turns" of
@@ -149,7 +151,7 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
             turn_input_ids = self.tokenizer(msg, add_special_tokens=turn_idx == 0).input_ids
 
             # [CRITICAL] We do not want to take the loss for the "USER: <msg>" prompts =>> just the responses!
-            turn_labels = (
+            turn_labels = (  # 在处理对话系统中的损失函数时，我们不希望考虑“USER: <msg>”这样的提示信息所产生的损失，而只关注对应的回复部分
                 [IGNORE_INDEX for _ in range(len(turn_input_ids))] if (turn_idx % 2) == 0 else list(turn_input_ids)
             )
 

@@ -59,8 +59,8 @@ def load(
             raise ValueError(f"Couldn't find `{model_id_or_path = }; check `cobra.available_model_names()`")
 
         overwatch.info(f"Downloading `{(model_id := GLOBAL_REGISTRY[model_id_or_path]['model_id'])} from HF Hub")  # model_id_or_path='cobra+3b'
-        config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"{model_id}/config.json", cache_dir=cache_dir)  # HF_HUB_REPO='han1997/cobra', model_id=''cobra+3b' , config_json = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/3d1aa9101b8276f9c721237e685cc83ef1d0f79f/cobra+3b/config.json'
-        checkpoint_pt = hf_hub_download(  # '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/3d1aa9101b8276f9c721237e685cc83ef1d0f79f/cobra+3b/checkpoints/latest-checkpoint.pt'
+        config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"{model_id}/config.json", cache_dir=cache_dir)  # HF_HUB_REPO='han1997/cobra', model_id=''cobra+3b' , config_json = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/config.json'
+        checkpoint_pt = hf_hub_download(  # '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
             repo_id=HF_HUB_REPO, filename=f"{model_id}/checkpoints/latest-checkpoint.pt", cache_dir=cache_dir
         )
 

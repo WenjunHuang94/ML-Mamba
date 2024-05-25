@@ -37,7 +37,7 @@ def preprocess(cfg: PreprocessConfig) -> None:
     download_extract(cfg.dataset_id, root_dir=cfg.root_dir)
 
     # Special Handling for OCR VQA Images (for `llava-v1.5-instruct`) --> convert GIFs/PNGs to JPG
-    if cfg.dataset_id == "llava-v1.5-instruct":
+    if cfg.dataset_id == "llava-v1.5-instruct":  # ocr_vqa需要将图片转为JPG格式
         convert_to_jpg(cfg.root_dir / "download" / cfg.dataset_id / "ocr_vqa" / "images")
 
 

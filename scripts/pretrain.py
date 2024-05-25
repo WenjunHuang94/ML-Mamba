@@ -32,6 +32,8 @@ from cobra.preprocessing import get_dataset_and_collator
 from cobra.training import Metrics, get_train_strategy
 from cobra.util import set_global_seed
 
+import argparse
+
 # Disable Tokenizers Parallelism to Play Nice w/ PyTorch Multiprocessing DataLoaders
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -74,7 +76,7 @@ class PretrainConfig:
 
     def __post_init__(self) -> None:
         """Set optimization parameters based on `stage` in {"align", "finetune"}."""
-        if self.stage == "align":
+        if self.stage == "align":  # 对齐
             self.epochs = self.model.align_epochs
             self.max_steps = self.model.align_max_steps
             self.global_batch_size = self.model.align_global_batch_size
@@ -88,7 +90,7 @@ class PretrainConfig:
 
             self.train_strategy = self.model.align_train_strategy
 
-        elif self.stage.endswith("finetune"):
+        elif self.stage.endswith("finetune"):  # 微调
             self.epochs = self.model.finetune_epochs
             self.max_steps = self.model.finetune_max_steps
             self.global_batch_size = self.model.finetune_global_batch_size
@@ -110,6 +112,40 @@ class PretrainConfig:
 
 @draccus.wrap()
 def pretrain(cfg: PretrainConfig) -> None:
+    # parser = argparse.ArgumentParser()
+    #
+    # parser.add_argument("--vision_backbone_id", type=str, default="dinosiglip-vit-so-384px")
+    # parser.add_argument("--image_resize_strategy", type=str, default="resize-naive")
+    # parser.add_argument("--llm_backbone_id", type=str, default="mamba-2.8b-zephyr")
+    # parser.add_argument("--model_type", type=str, default="cobra+3b")
+    # parser.add_argument("--finetune_global_batch_size", type=int, default=128)
+    # parser.add_argument("--finetune_per_device_batch_size", type=int, default=8)
+    # parser.add_argument("--dataset_type", type=str, default="llava-lvis4v-lrv")
+    #
+    # args = parser.parse_args()
+    #
+    # cfg.model.vision_backbone_id = args.vision_backbone_id
+    # cfg.model.image_resize_strategy = args.image_resize_strategy
+    # cfg.model.llm_backbone_id = args.llm_backbone_id
+    # cfg.model.type = args.model_type
+    # cfg.model.finetune_global_batch_size = args.finetune_global_batch_size
+    # cfg.model.finetune_per_device_batch_size = args.finetune_per_device_batch_size
+    # cfg.dataset.type = args.dataset_type
+
+    cfg.global_batch_size = 2
+    cfg.per_device_batch_size = 2
+    #cfg.stage = 'align'  # 对齐训练
+    cfg.pretrained_checkpoint = 'runs/cobra+3b+stage-finetune+x7/latest-checkpoint.pt'
+    cfg.max_steps = 100
+
+    import torch
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = '29502'
+    os.environ['RANK'] = '0'
+    os.environ['WORLD_SIZE'] = '1'
+    os.environ['LOCAL_RANK'] = '0'
+    dist.init_process_group(backend='nccl')
+
     overwatch.info("Cobra VLM Training :: Gathering Light")
 
     # Note => Under `torchrun` initializing `overwatch` will automatically set up `torch.distributed`
@@ -124,9 +160,12 @@ def pretrain(cfg: PretrainConfig) -> None:
         cfg.run_id = f"{dataset_id}+{model_id}+stage-{cfg.stage}+x{cfg.seed}" if cfg.run_id is None else cfg.run_id
 
     # Start =>> Build Directories and Set Randomness
+    print('cfg = ', cfg)
+    print('cfg.hf_token = ', cfg.hf_token)
     hf_token = cfg.hf_token.read_text().strip() if isinstance(cfg.hf_token, Path) else os.environ[cfg.hf_token]
-    worker_init_fn = set_global_seed(cfg.seed, get_worker_init_fn=True)
-    os.makedirs(run_dir := (cfg.run_root_dir / cfg.run_id), exist_ok=True)
+    print('hf_token = ', hf_token)
+    worker_init_fn = set_global_seed(cfg.seed, get_worker_init_fn=True)  # 使用相同的随机数种子，确保可复现性
+    os.makedirs(run_dir := (cfg.run_root_dir / cfg.run_id), exist_ok=True)  # run_dir = PosixPath('runs/cobra+3b+stage-finetune+x7')
     os.makedirs(cfg.run_root_dir / cfg.run_id / "checkpoints", exist_ok=True)
     if overwatch.is_rank_zero():
         # Additionally save a JSON version of the config
@@ -163,28 +202,28 @@ def pretrain(cfg: PretrainConfig) -> None:
 
     # Load Weights from Checkpoint (depends on stage, config)
     overwatch.info(f"Invoking `VLM.load_checkpoint()` for `{model_id}` => Training Stage: `{cfg.stage}`")
-    vlm.load_from_checkpoint(cfg.stage, run_dir, pretrained_checkpoint=cfg.pretrained_checkpoint)
+    vlm.load_from_checkpoint(cfg.stage, run_dir, pretrained_checkpoint=cfg.pretrained_checkpoint)  # 加载了Vision模块、mamba模块预训练参数，MLP没有加载预训练
 
     # Get Dataset for Specified Stage
     overwatch.info(f"Creating Dataset `{cfg.dataset.dataset_id}` => Stage: `{cfg.stage}`")
     train_dataset, collator = get_dataset_and_collator(
         cfg.stage,
-        cfg.dataset,
+        cfg.dataset,  # LLaVa_V15_Config(dataset_id='llava-v15', align_stage_components=(PosixPath('download/llava-laion-cc-sbu-558k/chat.json'), PosixPath('download/llava-laion-cc-sbu-558k')), finetune_stage_components=(PosixPath('download/llava-v1.5-instruct/llava_v1_5_mix665k.json'), PosixPath('download/llava-v1.5-instruct')), dataset_root_dir=PosixPath('data'))
         image_transform,
         tokenizer,
-        prompt_builder_fn=llm_backbone.prompt_builder_fn,
-        default_image_resolution=vision_backbone.default_image_resolution,
-        padding_side=tokenizer.padding_side,
+        prompt_builder_fn=llm_backbone.prompt_builder_fn,  # <class 'cobra.models.backbones.llm.prompting.zephyr_prompter.ZephyrChatPromptBuilder'>
+        default_image_resolution=vision_backbone.default_image_resolution,  # (3, 384, 384)
+        padding_side=tokenizer.padding_side,  # 'right'
     )
 
     # Create Train Strategy
     overwatch.info(f"Initializing Train Strategy `{cfg.train_strategy}`")
     train_strategy = get_train_strategy(
-        train_strategy=cfg.train_strategy,
+        train_strategy=cfg.train_strategy,  # 'fsdp-full-shard'
         vlm=vlm,
         device_id=device_id,
-        epochs=cfg.epochs,
-        max_steps=cfg.max_steps,
+        epochs=cfg.epochs,  # 2
+        max_steps=cfg.max_steps,  # self.max_steps值为空，要改掉！！！
         global_batch_size=cfg.global_batch_size,
         per_device_batch_size=cfg.per_device_batch_size,
         learning_rate=cfg.learning_rate,
@@ -197,7 +236,7 @@ def pretrain(cfg: PretrainConfig) -> None:
         reduce_in_full_precision=cfg.model.reduce_in_full_precision,
         worker_init_fn=worker_init_fn,
     )
-    train_strategy.run_setup(run_dir=run_dir, n_train_examples=len(train_dataset))
+    train_strategy.run_setup(run_dir=run_dir, n_train_examples=len(train_dataset))  # 设置训练过程中的一些参数和策略
 
     # Create Metrics =>> Handles on the fly tracking, logging to specified trackers (e.g., JSONL, Weights & Biases)
     overwatch.info(f"Creating Metrics with Active Trackers => `{cfg.trackers}`")

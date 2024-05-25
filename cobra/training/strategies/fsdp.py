@@ -81,7 +81,7 @@ class FSDPStrategy(TrainingStrategy):
         # FSDP-Specific Parameters
         if sharding_strategy == "shard-grad-op":
             self.fsdp_sharding_strategy = ShardingStrategy.SHARD_GRAD_OP
-        elif sharding_strategy == "full-shard":
+        elif sharding_strategy == "full-shard":  # sharding_strategy = "full-shard"
             self.fsdp_sharding_strategy = ShardingStrategy.FULL_SHARD
         else:
             raise ValueError(f"FSDP Sharding Strategy {sharding_strategy} is not supported!")
@@ -133,7 +133,7 @@ class FSDPStrategy(TrainingStrategy):
         vlm_fsdp_wrapping_policy = self.vlm.get_fsdp_wrapping_policy()
 
         # Assemble the Default FSDP Mixed Precision Policy
-        if self.enable_mixed_precision_training and self.mixed_precision_dtype == torch.bfloat16:
+        if self.enable_mixed_precision_training and self.mixed_precision_dtype == torch.bfloat16: # 进这个
             # MixedPrecision `param_dtype` specifies *compute* dtype (for forward/backward only)
             #   => Reference: https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.MixedPrecision
             reduce_buffer_dtype = torch.bfloat16 if not self.reduce_in_full_precision else torch.float32
@@ -152,7 +152,7 @@ class FSDPStrategy(TrainingStrategy):
             )
 
         # <FSDP> => note that FSDP will automatically take care of device placement (similar to `autocast`)
-        self.vlm = FSDP(
+        self.vlm = FSDP(  # FSDP 是一个用于 PyTorch 深度学习框架的库，用于实现数据并行训练
             self.vlm,
             auto_wrap_policy=vlm_fsdp_wrapping_policy,
             mixed_precision=fsdp_precision_policy,
@@ -182,7 +182,7 @@ class FSDPStrategy(TrainingStrategy):
 
         # Create Optimizer and LR Scheduler =>> note that most of the LR Schedulers we use require `max_steps/epochs`
         #   => Optimizer should only operate on parameters that are *unfrozen* / trainable!
-        if self.lr_scheduler_type == "linear-warmup+cosine-decay":
+        if self.lr_scheduler_type == "linear-warmup+cosine-decay":  # 进这个
             n_train_examples = math.ceil(n_train_examples / self.global_batch_size) * self.global_batch_size
             if self.max_steps is None:
                 num_training_steps = (n_train_examples * self.epochs) // self.global_batch_size
@@ -190,12 +190,12 @@ class FSDPStrategy(TrainingStrategy):
                 num_training_steps = self.max_steps
 
             # Set warmup steps (floor) based on `warmup_ratio` (should be 0.03 - 0.05)
-            num_warmup_steps = int(num_training_steps * self.warmup_ratio)
+            num_warmup_steps = int(num_training_steps * self.warmup_ratio)  # 计算训练过程中的学习率预热步数
 
             # Default AdamW w/ specified LR & Linear Warmup / Cosine Decay & Weight Decay
             #   => Create Parameter Groups --> bias terms, normalization layer parameters shouldn't be decayed!
             decay, no_decay = [], []
-            for name, param in self.vlm.named_parameters():
+            for name, param in self.vlm.named_parameters():  # 对模型的参数进行分组，分为需要权重衰减（decay）和不需要权重衰减（no_decay）的参数
                 if not param.requires_grad:
                     continue
 
