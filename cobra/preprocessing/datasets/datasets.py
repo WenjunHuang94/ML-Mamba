@@ -79,8 +79,11 @@ class AlignDataset(Dataset[Dict[str, torch.Tensor]]):
         input_ids = self.tokenizer(caption, truncation=True, return_tensors="pt").input_ids[0]
         labels = copy.deepcopy(input_ids)
 
+        # For tokenizers that have the <BOS> token: 
         # Set the <BOS> token's label to IGNORE_INDEX (since we're inserting the image patches right after)
-        labels[0] = IGNORE_INDEX  # 将标签的第一个位置设置为IGNORE_INDEX，表示在计算损失时忽略这个位置的值
+        # Mamba/GPTNeoXTokenizer does not have the <BOS> token.
+        if not isinstance(self.tokenizer, GPTNeoXTokenizerFast):
+            labels[0] = IGNORE_INDEX
 
         # Process Image --> get "pixel_values" (will either be a torch.Tensor OR a Dict[str,torch.Tensor])
         pixel_values = self.image_transform(Image.open(self.image_dir / image_path).convert("RGB"))
@@ -110,7 +113,7 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
         prompt_builder_fn: Type[PromptBuilder],
     ) -> None:
         super().__init__()
-        self.instruct_json, self.image_dir = instruct_json, image_dir  # data/download/llava-v1.5-instruct/llava_v1_5_mix665k.json
+        self.instruct_json, self.image_dir = instruct_json, image_dir
         self.image_transform, self.tokenizer = image_transform, tokenizer
         self.prompt_builder_fn = prompt_builder_fn
         self.dataset_type = "finetune"
@@ -118,8 +121,6 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
         # Load Instruct JSON
         with open(self.instruct_json, "r") as f:
             self.examples = json.load(f)
-            #self.examples = self.examples[:32]
-            #self.examples
 
             # === Unimodal + Multimodal Handling ===
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
@@ -143,7 +144,7 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
             msg = prompt_builder.add_turn(turn["from"], turn["value"])
 
             if isinstance(self.tokenizer, GPTNeoXTokenizerFast):
-                msg = msg.rstrip()
+                pass
             else:
                 raise ValueError(f"Tokenizer of type `{type(self.tokenizer)}` is not explicitly handled!")
 
@@ -171,7 +172,7 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
             image_path = Path(self.examples[idx]["image"])
 
             # Set the <BOS> token's label to IGNORE_INDEX (since we're inserting the image patches right after)
-            # Mamba/GPTNeoXToeknizer does not have the <BOS> token.
+            # Mamba/GPTNeoXTokenizer does not have the <BOS> token.
             if not isinstance(self.tokenizer, GPTNeoXTokenizerFast):
                 labels[0] = IGNORE_INDEX
 

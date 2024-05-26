@@ -230,8 +230,8 @@ class TrainingStrategy(ABC):
                         status = metrics.push()
 
                         # Check for Termination & Save Final Checkpoint (in case `max_steps` is not None)
-                        #if self.max_steps is not None and metrics.global_step >= self.max_steps:  # self.max_steps值为空，要改掉
-                        if train_idx % 2 == 0:
+                        if self.max_steps is not None and metrics.global_step >= self.max_steps:  # self.max_steps值为空，要改掉
+                        #if train_idx % 2 == 0:
                             self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())  # PosixPath('runs/cobra+3b+stage-finetune+x7')
                             dist.barrier()  # 在分布式环境中同步不同进程之间的操作的函数。当一个进程调用 dist.barrier() 时，它会被阻塞
 

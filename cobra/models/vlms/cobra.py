@@ -82,6 +82,8 @@ class CobraVLM(VLM):
             token_idx_list = self.llm_backbone.tokenizer.encode(trigger_string, add_special_tokens=False)
             assert len(token_idx_list) == 1, f'String "{trigger_string}" is tokenized as more than one token!'
             self.string2idx[trigger_string] = token_idx_list[0]
+            
+        self.eos_token_id = self.llm_backbone.tokenizer.eos_token_id
 
     def mamba_generate(self, *args, **kwargs):
         return MambaGenerationMixin.generate(self, *args, **kwargs)
@@ -108,6 +110,7 @@ class CobraVLM(VLM):
             generated_ids = self.mamba_generate(
                 input_ids=input_ids,            # Shape: [1, seq]
                 pixel_values=pixel_values,      # Shape: [1, 3, res, res] or Dict[str, Shape[1, 3, res, res]]
+                eos_token_id=self.eos_token_id,
                 **kwargs
             )
             # fmt: on
@@ -139,7 +142,7 @@ class CobraVLM(VLM):
         )
 
         # Load from Checkpoint (Custom --> should load both *projector* and *llm* weights)
-        model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]  # pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/3d1aa9101b8276f9c721237e685cc83ef1d0f79f/cobra+3b/checkpoints/latest-checkpoint.pt'
+        model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
         assert (
             "projector" in model_state_dict and "llm_backbone" in model_state_dict
         ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
@@ -238,7 +241,7 @@ class CobraVLM(VLM):
         #     return
 
         # If we're running a `no-align` architecture, we're good!
-        if self.arch_specifier.startswith("no-align"):  # arch_specifier = 'no-align+fused-gelu-mlp'. 原来的在这里退出，没有加载checkpoint!!!
+        if self.arch_specifier.startswith("no-align"):  # arch_specifier = 'no-align+fused-gelu-mlp'
             overwatch.info(
                 f"CobraVLM with `{self.arch_specifier = }` does not require pretrained weights!", ctx_level=1
             )
@@ -317,7 +320,7 @@ class CobraVLM(VLM):
         multimodal_indices: Optional[torch.LongTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         inference_params = None,
-        num_last_tokens:int = 0,
+        num_last_tokens: int = 0,
     ) -> CausalLMOutputWithPast:
         """Run a forward pass through the VLM, returning a CausalLMOutputWithPast instance (contains loss)."""
 
@@ -339,17 +342,17 @@ class CobraVLM(VLM):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
                 inference_params=inference_params,
-                num_last_tokens=num_last_tokens,
+                num_last_tokens=num_last_tokens
             )
 
         # Run Visual Feature Extraction
-        with torch.set_grad_enabled(self.vision_backbone_requires_grad):  # 动态设置是否启用梯度计算
+        with torch.set_grad_enabled(self.vision_backbone_requires_grad):
             if isinstance(pixel_values, dict):  # 进这个
                 patch_features = self.vision_backbone({k: pixel_values[k][multimodal_indices] for k in pixel_values})  # 这里将图片经过两个图片模型的输出特征合并了
             elif pixel_values is None:  # For cache phase in mamba's generate()
                 return self.llm_backbone(  # 如果没有图片，直接生成答案
                 input_ids=input_ids,
-                attention_mask=attention_mask,
+                attention_mask=None,
                 position_ids=None,
                 past_key_values=past_key_values,
                 inputs_embeds=None,
@@ -365,38 +368,21 @@ class CobraVLM(VLM):
                 patch_features = self.vision_backbone(pixel_values[multimodal_indices])
 
         # Projection Logic :: [bsz, num_patches, llm_embed_dim] =>> num_patches = (2 *) (256 + 1) for ViT-L + CLS
-        projected_patch_embeddings = self.projector(patch_features)  # 图像特征projector到LLM （B,L,D)
-        projected_patch_attention_mask = None
-        if attention_mask is not None:  # 训练时进入
-            projected_patch_attention_mask = torch.full(
-                (projected_patch_embeddings.shape[0], projected_patch_embeddings.shape[1]),
-                True,
-                dtype=attention_mask.dtype,
-                device=attention_mask.device,
-            )
+        projected_patch_embeddings = self.projector(patch_features)
 
         # Get Input Embeddings from LLM Backbone :: [bsz, input_seq_len, llm_embed_dim]
         input_embeddings = self.llm_backbone.embed_input_ids(input_ids)  # 用一个词嵌入处理（B,L) -> (B,L,D)
 
-        # Build Multimodal Embeddings (and build resulting attention mask)
-        multimodal_embeddings = torch.cat(  # 图片特征+文字特征 (B,L,D) (1,749,2560)
+
+        # Build Multimodal Embeddings
+        multimodal_embeddings = torch.cat(
             [
                 projected_patch_embeddings,  # (B,L,D1) (1,729,2560)
                 input_embeddings[multimodal_indices, :, :],  # (B,L,D2) (1,20,2560)
             ],
             dim=1,
         )
-        multimodal_attention_mask = None
-        if attention_mask is not None:  # 训练时进入
-            multimodal_attention_mask = torch.cat(
-                [
-                    projected_patch_attention_mask,  # (B,L)
-                    attention_mask[multimodal_indices, :],  # (B,L)
-                ],
-                dim=1,
-            )
 
-        # [Contract] We assume the first token of `labels` (associated with <BOS>) is already marked as "IGNORE"
         #   => We'll ignore the per-token outputs for each of the patch embeddings as well!
         multimodal_labels = None
         if labels is not None:  # 训练时进入
@@ -417,15 +403,13 @@ class CobraVLM(VLM):
             [idx for idx in range(len(input_ids)) if idx not in multimodal_indices],
             dtype=torch.long,
             device=multimodal_indices.device,
-        )  # unimodal_indices = tensor([], device='cuda:0', dtype=torch.int64)
+        )
 
         # No "unimodal" data --> Fused == Multimodal
-        if len(unimodal_indices) == 0:  # 进这个,表示全是多模态数据，没有单模态数据
-            fused_embeddings = multimodal_embeddings  # （B,L,D)
-            fused_attention_mask = multimodal_attention_mask
+        if len(unimodal_indices) == 0:
+            fused_embeddings = multimodal_embeddings
             fused_labels = multimodal_labels
-
-        else:  # 不进入
+        else:
             # Otherwise --> Merge w/ unimodal data
 
             # This doesn't matter --> but in the "normal" case this is the embedding of the <PAD> token
@@ -435,12 +419,6 @@ class CobraVLM(VLM):
                 dtype=input_embeddings.dtype,
                 device=input_embeddings.device,
             )
-            unimodal_attention_pad = torch.full(
-                (len(unimodal_indices), projected_patch_embeddings.shape[1]),
-                False,
-                dtype=attention_mask.dtype,
-                device=attention_mask.device,
-            )
             unimodal_labels_pad = torch.full(
                 (len(unimodal_indices), projected_patch_embeddings.shape[1]),
                 IGNORE_INDEX,
@@ -449,18 +427,16 @@ class CobraVLM(VLM):
             )
 
             unimodal_embeddings = torch.cat([input_embeddings[unimodal_indices], unimodal_embeddings_pad], dim=1)
-            unimodal_attention_mask = torch.cat([attention_mask[unimodal_indices], unimodal_attention_pad], dim=1)
             unimodal_labels = torch.cat([labels[unimodal_indices], unimodal_labels_pad], dim=1)
 
             # Create "Fused" Tensors by Stacking Multimodal & Unimodal
             fused_embeddings = torch.vstack([multimodal_embeddings, unimodal_embeddings])
-            fused_attention_mask = torch.vstack([multimodal_attention_mask, unimodal_attention_mask])
             fused_labels = torch.vstack([multimodal_labels, unimodal_labels])
 
         # Run LLM Forward --> returns CausalLMOutputWithPast!
-        res = self.llm_backbone(
+        return self.llm_backbone(
             input_ids=None,
-            attention_mask=fused_attention_mask,  # 训练计算损失的时候，实际上没有用到
+            attention_mask=None,
             position_ids=None,
             past_key_values=past_key_values,
             inputs_embeds=fused_embeddings,
@@ -472,7 +448,6 @@ class CobraVLM(VLM):
             inference_params=inference_params,
             num_last_tokens=num_last_tokens,
         )
-        return res
 
     # === GenerationMixin Methods ===
     #   => Note: The following methods override the functionality of `transformers.GenerationMixin`; these expect the
@@ -549,7 +524,7 @@ class CobraVLM(VLM):
 
                 # Handle `return_string_probabilities`
                 if return_string_probabilities is None:
-                    full_out_ids = self.mamba_generate(input_ids=input_ids, pixel_values=pixel_values, **kwargs)
+                    full_out_ids = self.mamba_generate(input_ids=input_ids, pixel_values=pixel_values, eos_token_id=self.eos_token_id, **kwargs)                    
                     gen_ids = full_out_ids[0, input_ids.shape[1] :]
 
                     # Decode `gen_ids` and strip any <EOS> tokens
@@ -561,6 +536,7 @@ class CobraVLM(VLM):
                         pixel_values=pixel_values,
                         output_scores=True,
                         return_dict_in_generate=True,
+                        eos_token_id=self.eos_token_id,
                         **kwargs,
                     )
 
@@ -581,7 +557,6 @@ class CobraVLM(VLM):
                     string_probs_unnormalized = token_probs[slice_idxs]
                     string_probs = string_probs_unnormalized / string_probs_unnormalized.sum()
                     gen_probabilities.append(string_probs.cpu().numpy().tolist())
-
         return gen_texts if return_string_probabilities is None else gen_probabilities
 
     @torch.inference_mode()
@@ -606,6 +581,7 @@ class CobraVLM(VLM):
             generated_ids = self.mamba_generate(
                 input_ids=input_ids,            # Shape: [1, seq]
                 pixel_values=pixel_values,      # Shape: [1, 3, res, res] or Dict[str, Shape[1, 3, res, res]]
+                eos_token_id=self.eos_token_id,
                 **kwargs
             )
             # fmt: on

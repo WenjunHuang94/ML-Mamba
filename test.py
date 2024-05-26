@@ -26,16 +26,16 @@ user_prompt = "What is going on in this image?"
 # Build prompt
 prompt_builder = vlm.get_prompt_builder()
 prompt_builder.add_turn(role="human", message=user_prompt)
-prompt_text = prompt_builder.get_prompt()
+prompt_text = prompt_builder.get_prompt()  # 经过prompt_builder添加过特殊start、end字符
 
 # Generate!
 generated_text = vlm.generate(
     image,
-    prompt_text,  # 经过prompt_builder添加过特殊start、end字符
-    cg=True,
+    prompt_text,
+    use_cache=True,
     do_sample=True,
     temperature=0.4,
-    max_new_tokens=512,  # 最大生成长度
+    max_new_tokens=512,
 )
 
 print('generated_text = ', generated_text)

@@ -136,7 +136,7 @@ def pretrain(cfg: PretrainConfig) -> None:
     cfg.per_device_batch_size = 2
     #cfg.stage = 'align'  # 对齐训练
     cfg.pretrained_checkpoint = 'runs/cobra+3b+stage-finetune+x7/latest-checkpoint.pt'
-    cfg.max_steps = 100
+    #cfg.max_steps = 100
 
     import torch
     os.environ['MASTER_ADDR'] = '127.0.0.1'
