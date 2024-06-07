@@ -135,7 +135,9 @@ def pretrain(cfg: PretrainConfig) -> None:
     cfg.global_batch_size = 2
     cfg.per_device_batch_size = 2
     #cfg.stage = 'align'  # 对齐训练
-    cfg.pretrained_checkpoint = 'runs/cobra+3b+stage-finetune+x7/latest-checkpoint.pt'
+
+    # cobra\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
+    cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
     #cfg.max_steps = 100
 
     import torch

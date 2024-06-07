@@ -229,16 +229,16 @@ class CobraVLM(VLM):
         # 自己加的：
         # （1）原来的只加载了Vision模块 + mamba模块预训练参数，MLP没有加载预训练
         # （2）改为加载最新自己训练的checkpoint
-        # if pretrained_checkpoint is not None:
-        #     model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
-        #     assert (
-        #             "projector" in model_state_dict and "llm_backbone" in model_state_dict
-        #     ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
-        #
-        #     self.projector.load_state_dict(model_state_dict["projector"])
-        #     self.llm_backbone.load_state_dict(model_state_dict["llm_backbone"])
-        #
-        #     return
+        if pretrained_checkpoint is not None:
+            model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
+            assert (
+                    "projector" in model_state_dict and "llm_backbone" in model_state_dict
+            ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
+
+            self.projector.load_state_dict(model_state_dict["projector"])
+            self.llm_backbone.load_state_dict(model_state_dict["llm_backbone"])
+
+            return
 
         # If we're running a `no-align` architecture, we're good!
         if self.arch_specifier.startswith("no-align"):  # arch_specifier = 'no-align+fused-gelu-mlp'
