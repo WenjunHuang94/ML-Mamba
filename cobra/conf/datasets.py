@@ -71,7 +71,7 @@ class LLaVa_LVIS4V_Config(DatasetConfig):
         Path("download/llava-laion-cc-sbu-558k/"),
     )
     finetune_stage_components: Tuple[Path, Path] = (
-        Path("download/llava-v1.5-instruct/llava_v1_5_lvis4v_mix888k.json"),
+        Path("download/llava-v1.5-instruct/llava_v1_5_lvis4v_mix888k.json"),   # 这个可以下载
         Path("download/llava-v1.5-instruct/"),
     )
     dataset_root_dir: Path = Path("data")
@@ -87,7 +87,7 @@ class LLaVa_LRV_Config(DatasetConfig):
         Path("download/llava-laion-cc-sbu-558k/"),
     )
     finetune_stage_components: Tuple[Path, Path] = (
-        Path("download/llava-v1.5-instruct/llava_v1_5_lrv_mix1008k.json"),
+        Path("download/llava-v1.5-instruct/llava_v1_5_lrv_mix1008k.json"),  # 这个可以下载
         Path("download/llava-v1.5-instruct/"),
     )
     dataset_root_dir: Path = Path("data")
@@ -103,7 +103,7 @@ class LLaVa_LVIS4V_LRV_Config(DatasetConfig):
         Path("download/llava-laion-cc-sbu-558k/"),
     )
     finetune_stage_components: Tuple[Path, Path] = (
-        Path("download/llava-v1.5-instruct/llava_v1_5_lvis4v_lrv_mix1231k.json"),
+        Path("download/llava-v1.5-instruct/llava_v1_5_lvis4v_lrv_mix1231k.json"),  # 这个可以下载
         Path("download/llava-v1.5-instruct/"),
     )
     dataset_root_dir: Path = Path("data")

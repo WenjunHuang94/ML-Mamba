@@ -25,6 +25,8 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from cobra.models.backbones.llm.prompting import PromptBuilder
 from cobra.overwatch import initialize_overwatch
 
+from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
+
 # Suppress HF Deprecation Warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -106,7 +108,7 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
         use_flash_attention_2: bool = False,
     ) -> None:
         super().__init__(llm_backbone_id)
-        self.llm_family = llm_family  # "mamba"
+        self.llm_family = llm_family
         self.llm_max_length = llm_max_length  # 2048
         self.inference_mode = inference_mode
 
@@ -114,21 +116,29 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
         #   => Note: We're eschewing use of the AutoModel API so that we can be more explicit about LLM-specific details
         if not self.inference_mode:  # 训练时进这个，generate时进else逻辑
             overwatch.info(f"Loading [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]", ctx_level=1)
-            self.llm = llm_cls.from_pretrained(
-                hf_hub_path,  # 'xiuyul/mamba-2.8b-zephyr'
-                token=hf_token,
-                use_flash_attention_2=use_flash_attention_2 if not self.inference_mode else False,
-                # The following parameters are set to prevent `UserWarnings` from HF; we want greedy decoding!
-                do_sample=False,
-                temperature=1.0,
-                top_p=1.0,
-            )
+            # self.llm = llm_cls.from_pretrained(  # cls是子类通过MAMBA_MODELS传参来的
+            #     hf_hub_path,  # 'xiuyul/mamba-2.8b-zephyr'
+            #     token=hf_token,
+            #     use_flash_attention_2=use_flash_attention_2 if not self.inference_mode else False,
+            #     # The following parameters are set to prevent `UserWarnings` from HF; we want greedy decoding!
+            #     do_sample=False,
+            #     temperature=1.0,
+            #     top_p=1.0,
+            # )
+
 
         # [Contract] `inference_mode` means we're loading from a pretrained checkpoint; no need to load base weights!
         else:  # generate时进这个
             overwatch.info(f"Building empty [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]", ctx_level=1)
-            llm_config = AutoConfig.from_pretrained(hf_hub_path, token=hf_token)  # hf_hub_path = 'xiuyul/mamba-2.8b-zephyr'
-            self.llm = llm_cls._from_config(llm_config)  # 'llm_cls': <class 'cobra.models.mamba.modeling_mamba.MambaForCausalLM'>
+            # llm_config = AutoConfig.from_pretrained(hf_hub_path, token=hf_token)
+            # self.llm = llm_cls._from_config(llm_config)  # cls是子类通过MAMBA_MODELS传参来的   'llm_cls': <class 'cobra.models.mamba.modeling_mamba.MambaForCausalLM'>
+
+
+        device = "cuda"
+        dtype = torch.float32  # 原来的是float16
+        self.llm = MambaLMHeadModel.from_pretrained(hf_hub_path, device=device, dtype=dtype)
+
+
             #
             # print("DEBUG EMPTY LLM INITIALIZE")
             # import IPython
@@ -149,7 +159,10 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
 
         # Load (Fast) Tokenizer
         overwatch.info(f"Loading [bold]{llm_family}[/] (Fast) Tokenizer via the AutoTokenizer API", ctx_level=1)
-        self.tokenizer = AutoTokenizer.from_pretrained(hf_hub_path, model_max_length=self.llm_max_length, token=hf_token)
+
+        # 我们用xiuyul/mamba-2.8b-zephyr代替 EleutherAI/gpt-neox-20b，区别是mamba-2.8b-zephyr 有 'pad_token': '<|endoftext|>'}
+        #self.tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b", model_max_length=self.llm_max_length, token=hf_token)
+        self.tokenizer = AutoTokenizer.from_pretrained('xiuyul/mamba-2.8b-zephyr', model_max_length=self.llm_max_length, token=hf_token)  # model_max_length 参数用于指定模型在处理输入时所能接受的最大长度
 
         # Validation =>> Our VLM logic currently operates under the assumption that the tokenization of a new input
         #                starts with a <BOS> token unless `add_special_tokens = False`; for these models, we empirically

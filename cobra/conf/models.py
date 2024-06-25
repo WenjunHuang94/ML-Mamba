@@ -66,7 +66,7 @@ class ModelConfig(ChoiceRegistry):
     enable_gradient_checkpointing: bool = True
 
     # Enable Traditional Mixed Precision Training via Torch Native AMP (`autocast`)
-    enable_mixed_precision_training: bool = True            # Whether to enable mixed precision training
+    enable_mixed_precision_training: bool = True            # 关闭混合精度会报错, 我们打开
     reduce_in_full_precision: bool = False                  # Whether to run gradient reduction in FP32
 
     # fmt: on
@@ -79,7 +79,7 @@ class Cobra_3B(ModelConfig):
     arch_specifier: str = "no-align+fused-gelu-mlp"
 
     vision_backbone_id: str = "dinosiglip-vit-so-384px"
-    llm_backbone_id: str = "mamba-2.8b-zephyr"
+    llm_backbone_id: str = "mamba2-2.7b"  # 修改成需要的
 
     image_resize_strategy: str = "resize-naive"
     llm_max_length: int = 2048

@@ -130,19 +130,28 @@ def pretrain(cfg: PretrainConfig) -> None:
     # cfg.model.type = args.model_type
     # cfg.model.finetune_global_batch_size = args.finetune_global_batch_size
     # cfg.model.finetune_per_device_batch_size = args.finetune_per_device_batch_size
+
+
     # cfg.dataset.type = args.dataset_type
 
-    cfg.global_batch_size = 2
+    cfg.global_batch_size = 2   # 2.7b对齐时是批次10，占用显存大约为62G。2.7b微调时是批次3，占用显存大约为72G
     cfg.per_device_batch_size = 2
-    #cfg.stage = 'align'  # 对齐训练
 
     # cobra\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
-    cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
+    #cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
+
+    # （1）注意要去配置里修改下llm_backbone_id ！！！！！！！！！！！！！！！！！！！！
+    # （2）注意save_checkpoint里修改下保存的文件名 !!!!!!!!!!!!!
+    #cfg.stage = 'align'  # 对齐训练
+    cfg.stage = "finetune"
+    #cfg.pretrained_checkpoint = '/home/hwj/program/cobra/vlm_mamba2_130mv2_model.pth'
+    cfg.pretrained_checkpoint = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint.pt'
+
     #cfg.max_steps = 100
 
     import torch
     os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29502'
+    os.environ['MASTER_PORT'] = '29504'  # 区别cobra-origin
     os.environ['RANK'] = '0'
     os.environ['WORLD_SIZE'] = '1'
     os.environ['LOCAL_RANK'] = '0'
@@ -255,7 +264,53 @@ def pretrain(cfg: PretrainConfig) -> None:
 
     # Run Training
     overwatch.info("Starting Training Loop")
-    train_strategy.run_training(train_dataset, collator, metrics, stage=cfg.stage, seed=cfg.seed)
+    #train_strategy.run_training(train_dataset, collator, metrics, stage=cfg.stage, seed=cfg.seed)
+    try:
+        # 尝试运行训练代码
+        train_strategy.run_training(train_dataset, collator, metrics, stage=cfg.stage, seed=cfg.seed)
+    except torch.cuda.OutOfMemoryError as e:
+        print("CUDA显存不足，正在减少batch size并重试...")
+        cfg.global_batch_size //= 2
+        cfg.per_device_batch_size //= 2
+
+        # 重新初始化 train_strategy
+        train_strategy = get_train_strategy(
+            train_strategy=cfg.train_strategy,
+            vlm=vlm,
+            device_id=device_id,
+            epochs=cfg.epochs,
+            max_steps=cfg.max_steps,
+            global_batch_size=cfg.global_batch_size,
+            per_device_batch_size=cfg.per_device_batch_size,
+            learning_rate=cfg.learning_rate,
+            weight_decay=cfg.weight_decay,
+            max_grad_norm=cfg.max_grad_norm,
+            lr_scheduler_type=cfg.lr_scheduler_type,
+            warmup_ratio=cfg.warmup_ratio,
+            enable_gradient_checkpointing=cfg.model.enable_gradient_checkpointing,
+            enable_mixed_precision_training=cfg.model.enable_mixed_precision_training,
+            reduce_in_full_precision=cfg.model.reduce_in_full_precision,
+            worker_init_fn=worker_init_fn,
+        )
+
+        # 重新运行 setup
+        train_strategy.run_setup(run_dir=run_dir, n_train_examples=len(train_dataset))
+
+        # 重新初始化 metrics
+        metrics = Metrics(
+            cfg.trackers,
+            cfg.run_id,
+            run_dir,
+            draccus.encode(cfg),
+            cfg.stage,
+            wandb_project=cfg.wandb_project,
+            wandb_entity=cfg.wandb_entity,
+            grad_accumulation_steps=train_strategy.grad_accumulation_steps,
+        )
+
+        # 重新运行训练代码
+        train_strategy.run_training(train_dataset, collator, metrics, stage=cfg.stage, seed=cfg.seed)
+
 
     # Finalize
     overwatch.info("Done with Training =>> Finalizing Metrics")

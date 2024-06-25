@@ -44,7 +44,7 @@ def get_dataset_and_collator(
         )
         return dataset, collator
 
-    elif stage == "finetune":
+    elif stage == "finetune":  # 进这
         annotation_json, image_dir = dataset_cfg.finetune_stage_components  # annotation_json = PosixPath('download/llava-v1.5-instruct/llava_v1_5_mix665k.json')
         dataset = dataset_cls(
             dataset_root_dir / annotation_json,  # /data/download/llava-v1.5-instruct/llava_v1_5_mix665k.json

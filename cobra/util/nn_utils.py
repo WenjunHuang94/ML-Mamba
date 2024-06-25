@@ -52,7 +52,34 @@ class FusedMLPProjector(nn.Module):
         else:
             raise ValueError(f"Fused Projector with `{mlp_type = }` is not supported!")
 
+        self._initialize_weights()  # 使用torch.nn.init.xavier_normal_(m.weight)方法初始化权重。这种初始化方法适用于使用ReLU或GELU等非线性激活函数
+
+    def _initialize_weights(self):
+        for m in self.projector:
+            if isinstance(m, nn.Linear):
+                torch.nn.init.xavier_normal_(m.weight)
+                #print(f"Initialized weight for {m}: {m.weight}")
+                #torch.nn.init.kaiming_normal_(m.weight, nonlinearity='gelu')
+                if m.bias is not None:
+                    torch.nn.init.zeros_(m.bias) # 使用torch.nn.init.zeros_方法初始化偏置项
+                    #print(f"Initialized bias for {m}: {m.bias}")
+
+        # for i, layer in enumerate(self.projector):  # 检查哪一层开始出现nan值
+        #     if isinstance(m, nn.Linear):
+        #         print('m.weight = ', m.weight)
+        #         print('m.bias = ', m.bias)
+
     def forward(self, fused_img_patches: torch.Tensor) -> torch.Tensor:
+        # if torch.isnan(fused_img_patches).any() or torch.isinf(fused_img_patches).any():
+        #     raise ValueError("Input contains NaN or Inf values!")
+
+        # x = fused_img_patches
+        # for i, layer in enumerate(self.projector):  # 检查哪一层开始出现nan值
+        #     x = layer(x)
+        #     if torch.isnan(x).any() or torch.isinf(x).any():
+        #         print(f"NaN or Inf found in layer {i}")
+        #         break
+        # return x
         return self.projector(fused_img_patches)
 
 
@@ -128,4 +155,23 @@ class FusedLDPProjector(nn.Module):
         
     def forward(self, img_patches: torch.Tensor) -> torch.Tensor:
         return self.projector(img_patches)
-    
+
+
+# 示例测试代码
+if __name__ == "__main__":
+    fused_vision_dim = 2176
+    llm_dim = 8704
+    model = FusedMLPProjector(fused_vision_dim, llm_dim)
+
+    # 生成随机输入张量
+    fused_img_patches = torch.randn(32, fused_vision_dim, device='cuda:0')  # 假设batch size为32
+
+    # 将模型和输入数据移动到GPU
+    model = model.cuda()
+    fused_img_patches = fused_img_patches.cuda()
+
+    try:
+        output = model(fused_img_patches)
+        print("Forward pass successful, output shape:", output.shape)
+    except ValueError as e:
+        print(e)

@@ -51,9 +51,14 @@ VISION_BACKBONES = {
 # === Language Model Registry ===
 LLM_BACKBONES = {
     # === Mamba Backbones ===
-    "mamba-2.8b-slimpj": {"cls": MambaLLMBackbone, "kwargs": {}},
-    "mamba-2.8b": {"cls": MambaLLMBackbone, "kwargs": {}},
-    "mamba-2.8b-zephyr": {"cls": MambaLLMBackbone, "kwargs": {}},  # 这个
+    # "mamba-2.8b-slimpj": {"cls": MambaLLMBackbone, "kwargs": {}},
+    # "mamba-2.8b": {"cls": MambaLLMBackbone, "kwargs": {}},
+    # "mamba-2.8b-zephyr": {"cls": MambaLLMBackbone, "kwargs": {}},
+    "mamba2-130m": {"cls": MambaLLMBackbone, "kwargs": {}},
+    "mamba2-370m": {"cls": MambaLLMBackbone, "kwargs": {}},
+    "mamba2-780m": {"cls": MambaLLMBackbone, "kwargs": {}},
+    "mamba2-1.3b": {"cls": MambaLLMBackbone, "kwargs": {}},
+    "mamba2-2.7b": {"cls": MambaLLMBackbone, "kwargs": {}},
 }
 
 # fmt: on
@@ -83,8 +88,9 @@ def get_llm_backbone_and_tokenizer(
 ) -> Tuple[LLMBackbone, PreTrainedTokenizerBase]:
     if llm_backbone_id in LLM_BACKBONES:
         llm_cfg = LLM_BACKBONES[llm_backbone_id]
-        llm_backbone: LLMBackbone = llm_cfg["cls"](  # llm_cfg["cls"] = <class 'cobra.models.backbones.llm.mamba.MambaLLMBackbone'>
-            llm_backbone_id,  # 'mamba-2.8b-zephyr'
+
+        llm_backbone: LLMBackbone = llm_cfg["cls"](  # cobra.models.backbones.llm.mamba.MambaLLMBackbone
+            llm_backbone_id,
             llm_max_length=llm_max_length,  # 2048
             hf_token=hf_token,
             inference_mode=inference_mode,  # 训练时传入False，generate时值传为True

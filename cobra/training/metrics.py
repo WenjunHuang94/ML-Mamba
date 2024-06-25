@@ -97,7 +97,7 @@ class WeightsBiasesTracker:
 # === Core Metrics Container :: Initializes Trackers => Compiles/Pushes Metrics ===
 
 
-class Metrics:
+class Metrics:  # 这段代码定义了一个名为 Metrics 的类，用于跟踪和记录训练过程中的各种指标（如损失、学习率等）。该类主要用于在分布式训练环境中收集和记录训练指标，并将这些指标写入不同类型的跟踪器（如 JSONLines 文件或 Weights & Biases）
     def __init__(
         self,
         active_trackers: Tuple[str, ...],

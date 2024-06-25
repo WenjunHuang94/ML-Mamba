@@ -36,7 +36,7 @@ class VLM(nn.Module, GenerationMixin, ABC):
         self.all_module_keys, self.trainable_module_keys = None, None
 
         # === GenerationMixin Expected Attributes =>> *DO NOT MODIFY* ===
-        self.generation_config = self.llm_backbone.llm.generation_config  # None
+        #self.generation_config = self.llm_backbone.llm.generation_config  # None
         self.main_input_name = "input_ids"
 
     @property

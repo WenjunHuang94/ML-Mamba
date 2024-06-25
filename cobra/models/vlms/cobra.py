@@ -27,6 +27,9 @@ from cobra.overwatch import initialize_overwatch
 from cobra.util.nn_utils import FusedMLPProjector, LinearProjector, MLPProjector, FusedLDPProjector
 from cobra.models.mamba.modeling_mamba import GenerationMixin as MambaGenerationMixin
 
+from mamba_ssm.utils.hf import load_config_hf, load_state_dict_hf
+#from mamba_ssm.models.mixer_seq_simple import Bidirectional_Mamba
+
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
 
@@ -34,6 +37,27 @@ overwatch = initialize_overwatch(__name__)
 # HuggingFace Default / LLaMa-2 IGNORE_INDEX (for labels)
 IGNORE_INDEX = -100
 
+MAMBA_MODELS = {
+    "mamba2-130m": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-130m"
+     },
+
+    "mamba2-370m": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-370m"
+     },
+
+    "mamba2-780m": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-780m"
+     },
+
+    "mamba2-1.3b": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-1.3b"
+     },
+
+    "mamba2-2.7b": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-2.7b"
+     },
+}
 
 class CobraVLM(VLM):
     def __init__(
@@ -55,18 +79,25 @@ class CobraVLM(VLM):
         # Set Weight Initialization Seed for Projector Consistency
         torch.manual_seed(vision_backbone.embed_dim)
 
+        llm_embed_dim = llm_backbone.llm.backbone.embedding.embedding_dim
+
         # Initialize Projection (Adapter) based on `arch_specifier`
         self.arch_specifier = arch_specifier
         if arch_specifier == "linear":
-            self.projector = LinearProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
+            self.projector = LinearProjector(vision_backbone.embed_dim, llm_embed_dim)
         elif arch_specifier.endswith("fused-gelu-mlp"):  # arch_specifier = 'no-align+fused-gelu-mlp'
-            self.projector = FusedMLPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
+            self.projector = FusedMLPProjector(vision_backbone.embed_dim, llm_embed_dim)
         elif arch_specifier.endswith("gelu-mlp"):
-            self.projector = MLPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
+            self.projector = MLPProjector(vision_backbone.embed_dim, llm_embed_dim)
         elif arch_specifier.endswith("fused-ldpnet"):
-            self.projector = FusedLDPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
+            self.projector = FusedLDPProjector(vision_backbone.embed_dim, llm_embed_dim)
         else:
             raise ValueError(f"CobraVLM with `{arch_specifier = }` is not supported!")
+
+        # device = "cuda"
+        # dtype = torch.float32  # 原来的是float16
+        # # self.llm = MambaLMHeadModel.from_pretrained(hf_hub_path, device=device, dtype=dtype)
+        # self.vision_llm_fuse = Bidirectional_Mamba.from_pretrained(MAMBA_MODELS['mamba2-130m']['hf_hub_path'], device=device, dtype=dtype)
 
         # Trackers
         self.vision_backbone_requires_grad = False
@@ -87,37 +118,22 @@ class CobraVLM(VLM):
 
     def mamba_generate(self, *args, **kwargs):
         return MambaGenerationMixin.generate(self, *args, **kwargs)
+        # 这里和cobra原始的有区别。请注意修改
+        # return self.llm_backbone.llm.generate(
+        #     input_ids=kwargs['input_ids'],
+        #     #max_length=2000,
+        #     max_length=108,
+        #     cg=True,
+        #     return_dict_in_generate=True,
+        #     output_scores=True,
+        #     enable_timing=False,
+        #     temperature=kwargs['temperature'],
+        #     top_k=1,
+        #     top_p=1.0,
+        #     min_p=0.0,
+        #     repetition_penalty=1.0,
+        # )
 
-    @torch.inference_mode()
-    def generate(self, image: Image, prompt_text: str, **kwargs: str) -> str:
-        # For now, only support generation with a batch size of 1 for simplicity
-        image_transform, tokenizer = self.vision_backbone.image_transform, self.llm_backbone.tokenizer
-
-        # Prepare Inputs
-        input_ids = tokenizer(prompt_text, truncation=True, return_tensors="pt").input_ids.to(self.device)
-        pixel_values = image_transform(image)
-        if isinstance(pixel_values, torch.Tensor):
-            pixel_values = pixel_values[None, ...].to(self.device)
-        elif isinstance(pixel_values, dict):
-            pixel_values = {k: v[None, ...].to(self.device) for k, v in pixel_values.items()}
-        else:
-            raise ValueError(f"Unsupported `pixel_values` type = {type(pixel_values)}")
-
-        # Invoke super().generate --> taps into `GenerationMixin` which (redirects) to `forward()`
-        autocast_dtype = self.llm_backbone.half_precision_dtype
-        with torch.autocast("cuda", dtype=autocast_dtype, enabled=self.enable_mixed_precision_training):
-            # fmt: off
-            generated_ids = self.mamba_generate(
-                input_ids=input_ids,            # Shape: [1, seq]
-                pixel_values=pixel_values,      # Shape: [1, 3, res, res] or Dict[str, Shape[1, 3, res, res]]
-                eos_token_id=self.eos_token_id,
-                **kwargs
-            )
-            # fmt: on
-
-        generated_text = tokenizer.decode(generated_ids[0, input_ids.shape[1] :], skip_special_tokens=True).strip()
-
-        return generated_text
 
     def allocate_inference_cache(self, *args, **kwargs):
         return self.llm_backbone.allocate_inference_cache(*args, **kwargs)
@@ -143,12 +159,42 @@ class CobraVLM(VLM):
 
         # Load from Checkpoint (Custom --> should load both *projector* and *llm* weights)
         model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
+
         assert (
             "projector" in model_state_dict and "llm_backbone" in model_state_dict
         ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
 
+
         vlm.projector.load_state_dict(model_state_dict["projector"])
-        vlm.llm_backbone.load_state_dict(model_state_dict["llm_backbone"])
+        vlm.llm_backbone.llm.load_state_dict(model_state_dict["llm_backbone"])
+        #vlm.llm_backbone.llm.load_state_dict(load_state_dict_hf("state-spaces/mamba2-130m", device="cuda", dtype=torch.float16))
+
+        # tempstate = load_state_dict_hf("state-spaces/mamba2-2.7b", device="cuda", dtype=torch.float16)
+        # # 查看模块和参数
+        # module_keys = set()
+        # for key in tempstate.keys():
+        #     # 提取模块名称（键的前缀部分）
+        #     module_name = key.split('.')[0]
+        #     module_keys.add(module_name)
+        #
+        # # 打印模块名称
+        # print("Modules in the state dict:")
+        # for module in sorted(module_keys):
+        #     print(module)
+        #
+        # tempstate2 = model_state_dict["projector"]
+        # # 查看模块和参数
+        # module_keys = set()
+        # for key in tempstate2.keys():
+        #     # 提取模块名称（键的前缀部分）
+        #     module_name = key.split('.')[0]
+        #     module_keys.add(module_name)
+        #
+        # # 打印模块名称
+        # print("Modules in the state dict:")
+        # for module in sorted(module_keys):
+        #     print(module)
+
 
         # Freeze Weights
         vlm.requires_grad_(False)
@@ -186,7 +232,7 @@ class CobraVLM(VLM):
             overwatch.info(f"[Frozen]    🥶 =>> LLM Backbone `{self.llm_backbone.identifier}`", ctx_level=1)
             overwatch.info(f"[TRAINABLE] 🔥 =>> Projector `{self.arch_specifier}`", ctx_level=1)
 
-        elif stage == "finetune":
+        elif stage == "finetune":  # 进这
             self.vision_backbone.requires_grad_(False)
             self.llm_backbone.requires_grad_(True)
             self.projector.requires_grad_(True)
@@ -231,12 +277,13 @@ class CobraVLM(VLM):
         # （2）改为加载最新自己训练的checkpoint
         if pretrained_checkpoint is not None:
             model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
+            #self.load_state_dict(model_state_dict)
             assert (
                     "projector" in model_state_dict and "llm_backbone" in model_state_dict
             ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
 
             self.projector.load_state_dict(model_state_dict["projector"])
-            self.llm_backbone.load_state_dict(model_state_dict["llm_backbone"])
+            self.llm_backbone.llm.load_state_dict(model_state_dict["llm_backbone"])
 
             return
 
@@ -367,12 +414,14 @@ class CobraVLM(VLM):
             else:
                 patch_features = self.vision_backbone(pixel_values[multimodal_indices])
 
+        # print(f"patch_features contains NaN: {torch.isnan(patch_features).any()}")
+        # print(f"patch_features contains Inf: {torch.isinf(patch_features).any()}")
+
         # Projection Logic :: [bsz, num_patches, llm_embed_dim] =>> num_patches = (2 *) (256 + 1) for ViT-L + CLS
         projected_patch_embeddings = self.projector(patch_features)
 
         # Get Input Embeddings from LLM Backbone :: [bsz, input_seq_len, llm_embed_dim]
         input_embeddings = self.llm_backbone.embed_input_ids(input_ids)  # 用一个词嵌入处理（B,L) -> (B,L,D)
-
 
         # Build Multimodal Embeddings
         multimodal_embeddings = torch.cat(
@@ -382,6 +431,8 @@ class CobraVLM(VLM):
             ],
             dim=1,
         )
+
+        #multimodal_embeddings = self.vision_llm_fuse(multimodal_embeddings)
 
         #   => We'll ignore the per-token outputs for each of the patch embeddings as well!
         multimodal_labels = None
@@ -585,7 +636,16 @@ class CobraVLM(VLM):
                 **kwargs
             )
             # fmt: on
+
+        #print('res = ', tokenizer.batch_decode(generated_ids.sequences.tolist()))
+
+        generated_text = tokenizer.decode(generated_ids[0, :], skip_special_tokens=True).strip()
+        print('generated_text = ', generated_text)
         # 忽略原句子，只对预测的内容解码
-        generated_text = tokenizer.decode(generated_ids[0, input_ids.shape[1] :], skip_special_tokens=True).strip()
+        #generated_text = tokenizer.decode(generated_ids[0, input_ids.shape[1] :], skip_special_tokens=True).strip()
+        #print('generated_text = ', generated_text)
+
+        # 批量解析
+        # print(tokenizer.batch_decode(out.sequences.tolist()))
 
         return generated_text

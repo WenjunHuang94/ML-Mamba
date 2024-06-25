@@ -32,7 +32,7 @@ def get_train_strategy(
     lr_scheduler_type: str,
     warmup_ratio: float,
     enable_gradient_checkpointing: bool = True,
-    enable_mixed_precision_training: bool = True,
+    enable_mixed_precision_training: bool = True,  # 默认打开混合精度,关闭时错误
     reduce_in_full_precision: bool = False,
     mixed_precision_dtype: torch.dtype = torch.bfloat16,
     worker_init_fn: Optional[Callable[[int], None]] = None,

@@ -163,7 +163,7 @@ def decode(
     if enable_timing:
         start.record()
     scores, sequences = [], [input_ids]
-    if max_new_tokens is not None:
+    if max_new_tokens is not None: # 这里会把长度覆盖掉
         max_length = sequences[-1].shape[1] + max_new_tokens  # override max_length if max_new_tokens is set
     sequences_cat = input_ids
     while not should_stop(sequences[-1], inference_params):
@@ -202,6 +202,7 @@ class GenerationMixin:
         max_new_tokens=None,
         top_k=1,
         top_p=0.0,
+        min_p=0.0,
         temperature=1.0,
         return_dict_in_generate=False,
         output_scores=False,
@@ -210,7 +211,8 @@ class GenerationMixin:
         if not do_sample:
             top_k = 1
         output = decode(
-            input_ids, self, max_length=max_length, max_new_tokens=max_new_tokens, top_k=top_k, top_p=top_p, temperature=temperature, **kwargs
+            input_ids, self, max_length=max_length, max_new_tokens=max_new_tokens, top_k=top_k, top_p=top_p,
+            min_p=min_p, temperature=temperature, **kwargs
         )
         if not output_scores:
             output.scores = None

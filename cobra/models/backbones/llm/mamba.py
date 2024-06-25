@@ -22,22 +22,41 @@ from cobra.models.backbones.llm.prompting import (
 # fmt: off
 MAMBA_MODELS = {
     # === Pure Mamba (non-instruct/chat-tuned) Models ===
-    "mamba-2.8b-slimpj": {
-        "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "state-spaces/mamba-2.8b-slimpj"
-    },
+    # "mamba-2.8b-slimpj": {
+    #     "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "state-spaces/mamba-2.8b-slimpj"
+    # },
+    #
+    # "mamba-2.8b": {
+    #     "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "state-spaces/mamba-2.8b"
+    # },
+    #
+    # "mamba-1.4b": {
+    #     "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "state-spaces/mamba-1.4b"
+    # },
+    #
+    # # === Finetuned Mamba Chat Model Based on mamba-2.8b-slimpj ===
+    # "mamba-2.8b-zephyr": {  # 这个
+    #     "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "xiuyul/mamba-2.8b-zephyr"
+    # },
+    "mamba2-130m": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-130m"
+     },
 
-    "mamba-2.8b": {
-        "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "state-spaces/mamba-2.8b"
-    },
+    "mamba2-370m": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-370m"
+     },
 
-    "mamba-1.4b": {
-        "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "state-spaces/mamba-1.4b"
-    },
+    "mamba2-780m": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-780m"
+     },
 
-    # === Finetuned Mamba Chat Model Based on mamba-2.8b-slimpj ===
-    "mamba-2.8b-zephyr": {  # 这个
-        "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "xiuyul/mamba-2.8b-zephyr"
-    },
+    "mamba2-1.3b": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-1.3b"
+     },
+
+    "mamba2-2.7b": {
+         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-2.7b"
+     },
 }
 
 
@@ -51,12 +70,12 @@ class MambaLLMBackbone(HFCausalLLMBackbone):
         use_flash_attention_2: bool = True, # Add for compatibility, Mamba does not have any attention
     ) -> None:
         super().__init__(
-            llm_backbone_id,  # mamba-2.8b-zephyr
+            llm_backbone_id,
             llm_max_length=llm_max_length,  # 2048
             hf_token=hf_token,
             inference_mode=inference_mode,  # 训练时传入False，generate时值传为True
             use_flash_attention_2=False,
-            **MAMBA_MODELS[llm_backbone_id],  # {'hf_hub_path': 'xiuyul/mamba-2.8b-zephyr', 'llm_cls': <class 'cobra.models.mamba.modeling_mamba.MambaForCausalLM'>, 'llm_family': 'mamba'}
+            **MAMBA_MODELS[llm_backbone_id],
         )
 
         self.llm.config.pad_token_id = self.tokenizer.pad_token_id
@@ -94,9 +113,10 @@ class MambaLLMBackbone(HFCausalLLMBackbone):
     
     @property
     def prompt_builder_fn(self) -> Type[PromptBuilder]:
-        if self.identifier.endswith("zephyr"):
+        #if self.identifier.endswith("zephyr"):
+        if self.identifier.endswith("zephyr") or self.identifier.startswith("mamba"):
             return ZephyrChatPromptBuilder
-        
+
         elif self.identifier.startswith("mamba"):
             return MambaPromptBuilder
 

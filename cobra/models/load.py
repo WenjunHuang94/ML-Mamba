@@ -59,14 +59,24 @@ def load(
             raise ValueError(f"Couldn't find `{model_id_or_path = }; check `cobra.available_model_names()`")
 
         overwatch.info(f"Downloading `{(model_id := GLOBAL_REGISTRY[model_id_or_path]['model_id'])} from HF Hub")  # model_id_or_path='cobra+3b'
-        config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"{model_id}/config.json", cache_dir=cache_dir)  # HF_HUB_REPO='han1997/cobra', model_id=''cobra+3b' , config_json = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/config.json'
-        checkpoint_pt = hf_hub_download(  # '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
-            repo_id=HF_HUB_REPO, filename=f"{model_id}/checkpoints/latest-checkpoint.pt", cache_dir=cache_dir
-        )
 
-    # Load Model Config from `config.json`
+        #config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"{model_id}/config.json", cache_dir=cache_dir)  # HF_HUB_REPO='han1997/cobra', model_id=''cobra+3b' , config_json = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/config.json'
+        config_json = '/home/hwj/program/cobra/cobra/conf/config.json'  # 里面需要改llm_backbone_id
+
+        # checkpoint_pt = hf_hub_download(  # '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
+        #     repo_id=HF_HUB_REPO, filename=f"{model_id}/checkpoints/latest-checkpoint.pt", cache_dir=cache_dir
+        # )
+        checkpoint_pt = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint.pt'
+        #checkpoint_pt = '/home/hwj/program/cobra/vlm_mamba2_780m_model.pth'
+
+        # Load Model Config from `config.json`
     with open(config_json, "r") as f:
         model_cfg = json.load(f)["model"]
+
+    model_cfg['llm_backbone_id'] = "mamba2-2.7b"  # 改为你需要的mamba2模型
+
+
+
 
     # = Load Individual Components necessary for Instantiating a VLM =
     #   =>> Print Minimal Config
@@ -78,6 +88,15 @@ def load(
         f"             Checkpoint Path =>> [underline]`{checkpoint_pt}`[/]"
     )
 
+    # Load LLM Backbone --> note `inference_mode = True` by default when calling `load()`
+    overwatch.info(f"Loading Pretrained LLM [bold]{model_cfg['llm_backbone_id']}[/] via HF Transformers")
+    llm_backbone, tokenizer = get_llm_backbone_and_tokenizer(
+        model_cfg["llm_backbone_id"],
+        llm_max_length=model_cfg.get("llm_max_length", 2048),  # 2048
+        hf_token=hf_token,
+        inference_mode=True,
+    )
+
     # Load Vision Backbone
     overwatch.info(f"Loading Vision Backbone [bold]{model_cfg['vision_backbone_id']}[/]")
     vision_backbone, image_transform = get_vision_backbone_and_transform(
@@ -85,14 +104,6 @@ def load(
         model_cfg["image_resize_strategy"],  # resize-naive
     )
 
-    # Load LLM Backbone --> note `inference_mode = True` by default when calling `load()`
-    overwatch.info(f"Loading Pretrained LLM [bold]{model_cfg['llm_backbone_id']}[/] via HF Transformers")
-    llm_backbone, tokenizer = get_llm_backbone_and_tokenizer(
-        model_cfg["llm_backbone_id"],  # mamba-2.8b-zephyr
-        llm_max_length=model_cfg.get("llm_max_length", 2048),  # 2048
-        hf_token=hf_token,  # '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'
-        inference_mode=True,
-    )
 
     # Load VLM using `from_pretrained` (clobbers HF syntax... eventually should reconcile)
     overwatch.info(f"Loading VLM [bold blue]{model_cfg['model_id']}[/] from Checkpoint; Freezing Weights 🥶")

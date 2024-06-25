@@ -109,10 +109,17 @@ class FSDPStrategy(TrainingStrategy):
             }
 
             # Iterate through `full_vlm_state_dict` and split `mkey.{full_dotted_path}` -> `mkey: {full_dotted_path}`
-            for key, param in full_vlm_state_dict.items():
-                for mkey in model_state_dicts:
-                    if key.startswith(mprefix := f"{mkey}."):
-                        model_state_dicts[mkey][key.removeprefix(mprefix)] = param
+            # for key, param in full_vlm_state_dict.items():
+            #     for mkey in model_state_dicts:
+            #         if key.startswith(mprefix := f"{mkey}."):
+            #             model_state_dicts[mkey][key.removeprefix(mprefix)] = param
+
+            model_state_dicts = {
+                "llm_backbone": {k[len("llm_backbone.llm."):]: v for k, v in full_vlm_state_dict.items() if
+                                 k.startswith("llm_backbone.llm.")},
+                "projector": {k[len("projector."):]: v for k, v in full_vlm_state_dict.items() if
+                              k.startswith("projector.")}
+            }
 
             # Save on rank zero *only*
             if overwatch.is_rank_zero():
@@ -126,17 +133,35 @@ class FSDPStrategy(TrainingStrategy):
 
                 # Save Checkpoint & Copy Latest to `latest-checkpoint.pt`
                 torch.save({"model": model_state_dicts}, checkpoint_path)
-                shutil.copy(checkpoint_path, checkpoint_dir / "latest-checkpoint.pt")
+                #shutil.copy(checkpoint_path, checkpoint_dir / "latest-checkpoint.pt")
+                shutil.copy(checkpoint_path, checkpoint_dir / "latest-vlm-mamba2-2.7b-checkpoint.pt")
 
     def run_setup(self, run_dir: Path, n_train_examples: int) -> None:
         # Iteratively Assemble FSDP Wrapping Policy by fetching the wrapping policies for each backbone/constituent
+
+        # 检查整个模型的参数数据类型
+        # print("Data types of all parameters in CobraVLM:")
+        # for name, param in self.vlm.named_parameters():
+        #     print(f"{name}: {param.dtype}")
+
+
+        # for param in self.vlm.parameters():
+        #     param.data = param.data.to(torch.float32)  # 使用float16时由于格式的数值范围较小，容易出现数值溢出或下溢，从而导致 NaN 或 Inf
+        #     #param.data = param.data.to(torch.bfloat16)
+        #
+        # print("Data types of all parameters in CobraVLM:")
+        # for name, param in self.vlm.named_parameters():
+        #     print(f"{name}: {param.dtype}")
+
         vlm_fsdp_wrapping_policy = self.vlm.get_fsdp_wrapping_policy()
 
+        # （1）在执行混合精度前，都要dtype=float32的
+
         # Assemble the Default FSDP Mixed Precision Policy
-        if self.enable_mixed_precision_training and self.mixed_precision_dtype == torch.bfloat16: # 进这个
+        if self.enable_mixed_precision_training and self.mixed_precision_dtype == torch.bfloat16: # 打开混合精度时进这个
             # MixedPrecision `param_dtype` specifies *compute* dtype (for forward/backward only)
             #   => Reference: https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.MixedPrecision
-            reduce_buffer_dtype = torch.bfloat16 if not self.reduce_in_full_precision else torch.float32
+            reduce_buffer_dtype = torch.bfloat16 if not self.reduce_in_full_precision else torch.float32  # reduce_buffer_dtype = torch.bfloat16
             fsdp_precision_policy = MixedPrecision(
                 param_dtype=torch.bfloat16, reduce_dtype=reduce_buffer_dtype, buffer_dtype=reduce_buffer_dtype
             )
@@ -145,11 +170,17 @@ class FSDPStrategy(TrainingStrategy):
             overwatch.info("Casting Vision Backbone to *Half Precision* via `.to(dtype=...)`")
             self.vlm.vision_backbone.to(dtype=self.vlm.vision_backbone.half_precision_dtype)
 
-        else:
+        else:  # 关闭混合精度时, 进这个时会报错
             # If we're not using mixed precision, everything is in default full precision!
             fsdp_precision_policy = MixedPrecision(
                 param_dtype=torch.float32, reduce_dtype=torch.float32, buffer_dtype=torch.float32
             )
+
+        # for param in self.vlm.projector.parameters():
+        #     print(param)
+
+        # for buffer in self.vlm.buffers():
+        #     buffer.data = buffer.data.to(torch.float32)
 
         # <FSDP> => note that FSDP will automatically take care of device placement (similar to `autocast`)
         self.vlm = FSDP(  # FSDP 是一个用于 PyTorch 深度学习框架的库，用于实现数据并行训练
@@ -161,6 +192,10 @@ class FSDPStrategy(TrainingStrategy):
             limit_all_gathers=True,
             use_orig_params=True,
         )
+
+        # print("Data types of all parameters in CobraVLM:")
+        # for name, param in self.vlm.named_parameters():
+        #     print(f"{name}: {param.dtype}")
 
         # Gradient Checkpoint Setup
         if self.enable_gradient_checkpointing:

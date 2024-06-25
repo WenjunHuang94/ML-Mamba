@@ -113,7 +113,7 @@ class FinetuneDataset(Dataset[Dict[str, torch.Tensor]]):
         prompt_builder_fn: Type[PromptBuilder],
     ) -> None:
         super().__init__()
-        self.instruct_json, self.image_dir = instruct_json, image_dir
+        self.instruct_json, self.image_dir = instruct_json, image_dir  # PosixPath('data/download/llava-v1.5-instruct/llava_v1_5_mix665k.json') , PosixPath('data/download/llava-v1.5-instruct')
         self.image_transform, self.tokenizer = image_transform, tokenizer
         self.prompt_builder_fn = prompt_builder_fn
         self.dataset_type = "finetune"

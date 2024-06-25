@@ -27,6 +27,8 @@ from cobra.util.data_utils import PaddedCollatorForLanguageModeling
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
 
+import time
+
 
 # === Abstract Base Class for an arbitrary Training Strategy ===
 class TrainingStrategy(ABC):
@@ -158,6 +160,8 @@ class TrainingStrategy(ABC):
         # === Train ===
         # 调试用！！！！！！！
         self.epochs = 1
+        start_time = time.time()
+        hour_counter = 0
 
         status = metrics.get_status()
         with tqdm(
@@ -171,7 +175,7 @@ class TrainingStrategy(ABC):
             disable=not overwatch.is_rank_zero(),
         ) as progress:
             for epoch in range(self.epochs):
-                self.vlm.train()
+                self.vlm.train()  # 这行代码将模型设置为训练模式。这通常会启用诸如Dropout等训练时特定的行为，但不会影响参数的requires_grad属性
                 sampler.set_epoch(epoch)
 
                 # Zero-Gradients (just in case)
@@ -184,7 +188,7 @@ class TrainingStrategy(ABC):
                     with torch.autocast(
                         "cuda",
                         dtype=self.mixed_precision_dtype,
-                        enabled=self.enable_mixed_precision_training,
+                        enabled=self.enable_mixed_precision_training,  # 关闭时值应为False
                     ):
                         output: CausalLMOutputWithPast = self.vlm(
                             input_ids=batch["input_ids"],
@@ -231,7 +235,6 @@ class TrainingStrategy(ABC):
 
                         # Check for Termination & Save Final Checkpoint (in case `max_steps` is not None)
                         if self.max_steps is not None and metrics.global_step >= self.max_steps:  # self.max_steps值为空，要改掉
-                        #if train_idx % 2 == 0:
                             self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())  # PosixPath('runs/cobra+3b+stage-finetune+x7')
                             dist.barrier()  # 在分布式环境中同步不同进程之间的操作的函数。当一个进程调用 dist.barrier() 时，它会被阻塞
 
@@ -241,10 +244,21 @@ class TrainingStrategy(ABC):
                         progress.update()
                         progress.set_description(status)
 
+
+                    current_time = time.time()
+                    if current_time - start_time >= 3600:  # 检查是否已经过了一个小时
+                        hour_counter += 1
+                        self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
+
+                        dist.barrier()
+                        start_time = time.time()  # 重置起始时间
+
             # Save checkpoint at end each epoch (if `self.max_steps` is None)
             #if self.max_steps is None:  # 循环结束都保存
             #    self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
             #    dist.barrier()
+
+            #torch.save(self.vlm.state_dict(), '/home/hwj/program/cobra/vlm_model.pth')
             self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
             dist.barrier()
             print(22222222222222222222222222222)

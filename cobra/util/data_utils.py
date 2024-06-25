@@ -39,14 +39,14 @@ class PaddedCollatorForLanguageModeling:
 
         # For now, we only support Tokenizers with `padding_side = "right"` during Training (but plan to extend!)
         #   => Handle padding via RNN Utils => `pad_sequence`
-        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)
-        labels = pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)
+        input_ids = pad_sequence(input_ids, batch_first=True, padding_value=self.pad_token_id)  # self.pad_token_id=0,来批次数据长度对齐
+        labels = pad_sequence(labels, batch_first=True, padding_value=IGNORE_INDEX)  # IGNORE_INDEX=-100
 
         # Truncate (if necessary)
         input_ids, labels = input_ids[:, : self.model_max_length], labels[:, : self.model_max_length]
 
         # Get `attention_mask` by checking for `pad_token_id`
-        attention_mask = input_ids.ne(self.pad_token_id)
+        attention_mask = input_ids.ne(self.pad_token_id)  # 目前我们计算损失时, 实际没用到attention_mask
 
         # === Handle "unimodal" (language-only) vs. "multimodal" ===
 
