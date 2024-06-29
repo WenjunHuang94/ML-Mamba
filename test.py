@@ -22,11 +22,12 @@ vlm = load(model_id, hf_token=hf_token)
 # # 这里是因为load_state_dict_hf("state-spaces/mamba2-2.7b")时对应的是CobraVLM.llm_backbone.llm的模块参数，所以我们也要对应的只存这里
 # filtered_state_dict = {
 #     "llm_backbone": {k[len("llm_backbone.llm."):]: v for k, v in state_dict.items() if k.startswith("llm_backbone.llm.")},
+#     "bidirectional_mamba": {k[len("bidirectional_mamba."):]: v for k, v in state_dict.items() if k.startswith("bidirectional_mamba.")},
 #     "projector": {k[len("projector."):]: v for k, v in state_dict.items() if k.startswith("projector.")}
 # }
 #
 # # 保存提取的参数
-# save_path = "./vlm_mamba2_130mv2_model.pth"
+# save_path = "./vlm_single_mamba2_130m_model.pth"
 # torch.save({"model": filtered_state_dict}, save_path)
 #
 # model_state_dict = torch.load(save_path, map_location="cpu")["model"]
@@ -42,7 +43,7 @@ vlm = load(model_id, hf_token=hf_token)
 # print("Modules in the state dict:")
 # for module in sorted(module_keys):
 #     print(module)
-
+#
 # # 检查整个模型的参数数据类型
 # print("Data types of all parameters in CobraVLM:")
 # for name, param in vlm.named_parameters():
@@ -50,7 +51,6 @@ vlm = load(model_id, hf_token=hf_token)
 
 
 vlm.to(device, dtype=dtype) # 不转dtype=bfoat16输出会出错
-#vlm.to(device)
 
 
 

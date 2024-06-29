@@ -18,6 +18,8 @@ from cobra.models.backbones.llm.prompting import (
     MambaPromptBuilder
 )
 
+from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
+
 # Registry =>> Support Mamba Models
 # fmt: off
 MAMBA_MODELS = {
@@ -39,23 +41,26 @@ MAMBA_MODELS = {
     #     "llm_family": "mamba", "llm_cls": MambaForCausalLM, "hf_hub_path": "xiuyul/mamba-2.8b-zephyr"
     # },
     "mamba2-130m": {
-         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-130m"
+         "llm_family": "mamba2", "llm_cls": MambaLMHeadModel, "hf_hub_path": "state-spaces/mamba2-130m"
      },
 
     "mamba2-370m": {
-         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-370m"
+         "llm_family": "mamba2", "llm_cls": MambaLMHeadModel, "hf_hub_path": "state-spaces/mamba2-370m"
      },
 
     "mamba2-780m": {
-         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-780m"
+         "llm_family": "mamba2", "llm_cls": MambaLMHeadModel, "hf_hub_path": "state-spaces/mamba2-780m"
      },
 
     "mamba2-1.3b": {
-         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-1.3b"
+         "llm_family": "mamba2", "llm_cls": MambaLMHeadModel, "hf_hub_path": "state-spaces/mamba2-1.3b"
      },
 
+    # "mamba2-2.7b": {
+    #      "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-2.7b"
+    #  },
     "mamba2-2.7b": {
-         "llm_family": "mamba2", "llm_cls": None, "hf_hub_path": "state-spaces/mamba2-2.7b"
+         "llm_family": "mamba2", "llm_cls": MambaLMHeadModel, "hf_hub_path": "state-spaces/mamba2-2.7b"
      },
 }
 
@@ -121,6 +126,10 @@ class MambaLLMBackbone(HFCausalLLMBackbone):
             return MambaPromptBuilder
 
         raise ValueError(f"No PromptBuilder defined for LLM Backbone `{self.identifier}`")
+
+    @property
+    def embed_dim(self) -> int:
+        return self.llm.backbone.embedding.embedding_dim
 
     @property
     def transformer_layer_cls(self) -> Type[nn.Module]:

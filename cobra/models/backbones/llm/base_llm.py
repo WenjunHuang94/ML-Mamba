@@ -136,7 +136,8 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
 
         device = "cuda"
         dtype = torch.float32  # 原来的是float16
-        self.llm = MambaLMHeadModel.from_pretrained(hf_hub_path, device=device, dtype=dtype)
+        # self.llm = MambaLMHeadModel.from_pretrained(hf_hub_path, device=device, dtype=dtype)
+        self.llm = llm_cls.from_pretrained(hf_hub_path, device=device, dtype=dtype)
 
 
             #

@@ -52,7 +52,7 @@ class PretrainConfig:
 
     # DatasetConfig (`cobra/conf/datasets.py`); override with --dataset.type `DatasetRegistry.<DATASET>.dataset_id`
     dataset: DatasetConfig = field(
-        default_factory=DatasetConfig.get_choice_class(DatasetRegistry.LLAVA_V15.dataset_id)
+        default_factory=DatasetConfig.get_choice_class(DatasetRegistry.LLAVA_V15_VAL.dataset_id)  # 换成LVIS-Instruct-4V
     )
 
     # Pretraining Stage in < align (projector-only) | finetune (projector + LLM) | full-finetune (all) >
@@ -144,8 +144,11 @@ def pretrain(cfg: PretrainConfig) -> None:
     # （2）注意save_checkpoint里修改下保存的文件名 !!!!!!!!!!!!!
     #cfg.stage = 'align'  # 对齐训练
     cfg.stage = "finetune"
-    #cfg.pretrained_checkpoint = '/home/hwj/program/cobra/vlm_mamba2_130mv2_model.pth'
-    cfg.pretrained_checkpoint = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint.pt'
+
+    #cfg.pretrained_checkpoint = '/home/hwj/program/cobra/vlm_single_mamba2_130m_model.pth'
+
+    # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    cfg.pretrained_checkpoint = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint-0624.pt'
 
     #cfg.max_steps = 100
 

@@ -66,8 +66,11 @@ def load(
         # checkpoint_pt = hf_hub_download(  # '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
         #     repo_id=HF_HUB_REPO, filename=f"{model_id}/checkpoints/latest-checkpoint.pt", cache_dir=cache_dir
         # )
-        checkpoint_pt = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint.pt'
-        #checkpoint_pt = '/home/hwj/program/cobra/vlm_mamba2_780m_model.pth'
+
+        # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        checkpoint_pt = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint-0624.pt'
+
+        #checkpoint_pt = '/home/hwj/program/cobra/latest-checkpoint.pt'
 
         # Load Model Config from `config.json`
     with open(config_json, "r") as f:

@@ -247,11 +247,14 @@ class TrainingStrategy(ABC):
 
                     current_time = time.time()
                     if current_time - start_time >= 3600:  # 检查是否已经过了一个小时
+                    #if True:
                         hour_counter += 1
                         self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
 
                         dist.barrier()
                         start_time = time.time()  # 重置起始时间
+
+                        #break  # 调试用
 
             # Save checkpoint at end each epoch (if `self.max_steps` is None)
             #if self.max_steps is None:  # 循环结束都保存

@@ -117,6 +117,8 @@ class FSDPStrategy(TrainingStrategy):
             model_state_dicts = {
                 "llm_backbone": {k[len("llm_backbone.llm."):]: v for k, v in full_vlm_state_dict.items() if
                                  k.startswith("llm_backbone.llm.")},
+                # "bidirectional_mamba": {k[len("bidirectional_mamba."):]: v for k, v in full_vlm_state_dict.items() if
+                #                         k.startswith("bidirectional_mamba.")},
                 "projector": {k[len("projector."):]: v for k, v in full_vlm_state_dict.items() if
                               k.startswith("projector.")}
             }
@@ -134,7 +136,7 @@ class FSDPStrategy(TrainingStrategy):
                 # Save Checkpoint & Copy Latest to `latest-checkpoint.pt`
                 torch.save({"model": model_state_dicts}, checkpoint_path)
                 #shutil.copy(checkpoint_path, checkpoint_dir / "latest-checkpoint.pt")
-                shutil.copy(checkpoint_path, checkpoint_dir / "latest-vlm-mamba2-2.7b-checkpoint.pt")
+                shutil.copy(checkpoint_path, checkpoint_dir / "latest-vlm-mamba2-2.7b-checkpoint-0624after.pt")
 
     def run_setup(self, run_dir: Path, n_train_examples: int) -> None:
         # Iteratively Assemble FSDP Wrapping Policy by fetching the wrapping policies for each backbone/constituent

@@ -79,25 +79,24 @@ class CobraVLM(VLM):
         # Set Weight Initialization Seed for Projector Consistency
         torch.manual_seed(vision_backbone.embed_dim)
 
-        llm_embed_dim = llm_backbone.llm.backbone.embedding.embedding_dim
+        #llm_embed_dim = llm_backbone.llm.backbone.embedding.embedding_dim
 
         # Initialize Projection (Adapter) based on `arch_specifier`
         self.arch_specifier = arch_specifier
         if arch_specifier == "linear":
-            self.projector = LinearProjector(vision_backbone.embed_dim, llm_embed_dim)
+            self.projector = LinearProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
         elif arch_specifier.endswith("fused-gelu-mlp"):  # arch_specifier = 'no-align+fused-gelu-mlp'
-            self.projector = FusedMLPProjector(vision_backbone.embed_dim, llm_embed_dim)
+            self.projector = FusedMLPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
         elif arch_specifier.endswith("gelu-mlp"):
-            self.projector = MLPProjector(vision_backbone.embed_dim, llm_embed_dim)
+            self.projector = MLPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
         elif arch_specifier.endswith("fused-ldpnet"):
-            self.projector = FusedLDPProjector(vision_backbone.embed_dim, llm_embed_dim)
+            self.projector = FusedLDPProjector(vision_backbone.embed_dim, llm_backbone.embed_dim)
         else:
             raise ValueError(f"CobraVLM with `{arch_specifier = }` is not supported!")
 
         # device = "cuda"
         # dtype = torch.float32  # 原来的是float16
-        # # self.llm = MambaLMHeadModel.from_pretrained(hf_hub_path, device=device, dtype=dtype)
-        # self.vision_llm_fuse = Bidirectional_Mamba.from_pretrained(MAMBA_MODELS['mamba2-130m']['hf_hub_path'], device=device, dtype=dtype)
+        #self.bidirectional_mamba = Bidirectional_Mamba.from_pretrained(MAMBA_MODELS['mamba2-130m']['hf_hub_path'], device=device, dtype=dtype)
 
         # Trackers
         self.vision_backbone_requires_grad = False
@@ -167,7 +166,10 @@ class CobraVLM(VLM):
 
         vlm.projector.load_state_dict(model_state_dict["projector"])
         vlm.llm_backbone.llm.load_state_dict(model_state_dict["llm_backbone"])
-        #vlm.llm_backbone.llm.load_state_dict(load_state_dict_hf("state-spaces/mamba2-130m", device="cuda", dtype=torch.float16))
+        #vlm.llm_backbone.load_state_dict(model_state_dict["llm_backbone"])  # 中科院邢逸飞的
+
+        # vlm.llm_backbone.llm.load_state_dict(load_state_dict_hf("state-spaces/mamba2-130m", device="cuda", dtype=torch.float16))
+        #vlm.bidirectional_mamba.load_state_dict(model_state_dict["bidirectional_mamba"])
 
         # tempstate = load_state_dict_hf("state-spaces/mamba2-2.7b", device="cuda", dtype=torch.float16)
         # # 查看模块和参数
@@ -220,6 +222,7 @@ class CobraVLM(VLM):
             self.vision_backbone.requires_grad_(False)
             self.llm_backbone.requires_grad_(False)
             self.projector.requires_grad_(True)
+            #self.bidirectional_mamba.requires_grad_(True)
 
             # Add to `self.trainable_module_keys`
             self.trainable_module_keys = ["projector"]
@@ -235,7 +238,10 @@ class CobraVLM(VLM):
         elif stage == "finetune":  # 进这
             self.vision_backbone.requires_grad_(False)
             self.llm_backbone.requires_grad_(True)
+            #self.llm_backbone.requires_grad_(False)
             self.projector.requires_grad_(True)
+            #self.projector.requires_grad_(False)
+            #self.bidirectional_mamba.requires_grad_(True)
 
             # Add to `self.trainable_module_keys`
             self.trainable_module_keys = ["projector", "llm_backbone"]
@@ -278,11 +284,15 @@ class CobraVLM(VLM):
         if pretrained_checkpoint is not None:
             model_state_dict = torch.load(pretrained_checkpoint, map_location="cpu")["model"]
             #self.load_state_dict(model_state_dict)
+            # assert (
+            #         "projector" in model_state_dict and "bidirectional_mamba" in model_state_dict and "llm_backbone" in model_state_dict
+            # ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
             assert (
                     "projector" in model_state_dict and "llm_backbone" in model_state_dict
             ), "CobraVLM `from_pretrained` expects checkpoint with keys for `projector` AND `llm_backbone`!"
 
             self.projector.load_state_dict(model_state_dict["projector"])
+            #self.bidirectional_mamba.load_state_dict(model_state_dict["bidirectional_mamba"])
             self.llm_backbone.llm.load_state_dict(model_state_dict["llm_backbone"])
 
             return
@@ -432,7 +442,17 @@ class CobraVLM(VLM):
             dim=1,
         )
 
-        #multimodal_embeddings = self.vision_llm_fuse(multimodal_embeddings)
+
+
+        # print("Before bidirectional_mamba: mean =", torch.mean(multimodal_embeddings), "var =",
+        #       torch.var(multimodal_embeddings), "max =", torch.max(multimodal_embeddings), "min =",
+        #       torch.min(multimodal_embeddings))
+        #
+        #multimodal_embeddings = self.bidirectional_mamba(multimodal_embeddings)
+        #
+        # print("After bidirectional_mamba: mean =", torch.mean(multimodal_embeddings), "var =",
+        #       torch.var(multimodal_embeddings), "max =", torch.max(multimodal_embeddings), "min =",
+        #       torch.min(multimodal_embeddings))
 
         #   => We'll ignore the per-token outputs for each of the patch embeddings as well!
         multimodal_labels = None
