@@ -68,9 +68,9 @@ def load(
         # )
 
         # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        checkpoint_pt = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint-0624.pt'
+        checkpoint_pt = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/step-002658-epoch-00-loss=1.3486.pt'
 
-        #checkpoint_pt = '/home/hwj/program/cobra/latest-checkpoint.pt'
+        #checkpoint_pt = '/home/hwj/program/cobra/vlm_projector_mamba2_2.7b_v3_model.pth'
 
         # Load Model Config from `config.json`
     with open(config_json, "r") as f:
@@ -115,6 +115,7 @@ def load(
         model_cfg["model_id"],
         vision_backbone,
         llm_backbone,
+        llm_backbone_id=model_cfg['llm_backbone_id'],
         arch_specifier=model_cfg["arch_specifier"],
     )
 

@@ -30,19 +30,19 @@ class DatasetConfig(ChoiceRegistry):
 
 
 # [Reproduction] LLaVa-v15 (exact dataset used in all public LLaVa-v15 models)
-# @dataclass
-# class LLaVa_V15_Config(DatasetConfig):
-#     dataset_id: str = "llava-v15"
-#
-#     align_stage_components: Tuple[Path, Path] = (
-#         Path("download/llava-laion-cc-sbu-558k/chat.json"),
-#         Path("download/llava-laion-cc-sbu-558k/"),
-#     )
-#     finetune_stage_components: Tuple[Path, Path] = (
-#         Path("download/llava-v1.5-instruct/llava_v1_5_mix665k.json"),
-#         Path("download/llava-v1.5-instruct/"),
-#     )
-#     dataset_root_dir: Path = Path("data")
+@dataclass
+class LLaVa_V15_Config(DatasetConfig):
+    dataset_id: str = "llava-v15"
+
+    align_stage_components: Tuple[Path, Path] = (
+        Path("download/llava-laion-cc-sbu-558k/chat.json"),
+        Path("download/llava-laion-cc-sbu-558k/"),
+    )
+    finetune_stage_components: Tuple[Path, Path] = (
+        Path("download/llava-v1.5-instruct/llava_v1_5_mix665k.json"),
+        Path("download/llava-v1.5-instruct/"),
+    )
+    dataset_root_dir: Path = Path("data")
 
 @dataclass
 class LLaVa_V15_VAL_Config(DatasetConfig):
@@ -53,7 +53,7 @@ class LLaVa_V15_VAL_Config(DatasetConfig):
         Path("download/llava-laion-cc-sbu-558k/"),
     )
     finetune_stage_components: Tuple[Path, Path] = (
-        Path("download/llava-v1.5-instruct/lvis_instruct4v_220k.json"),  # 对应coco文件夹里的val验证图片集
+        Path("download/llava-v1.5-instruct/llava_v1_5_lvis4v_mix888k.json"),  # 对应coco文件夹里的val验证图片集
         Path("download/llava-v1.5-instruct/"),
     )
     dataset_root_dir: Path = Path("data")
@@ -127,9 +127,9 @@ class LLaVa_LVIS4V_LRV_Config(DatasetConfig):
 @unique
 class DatasetRegistry(Enum):
     # === LLaVa v1.5 ===
-    # LLAVA_V15 = LLaVa_V15_Config
+    LLAVA_V15 = LLaVa_V15_Config
 
-    LLAVA_V15_VAL = LLaVa_V15_VAL_Config
+    #LLAVA_V15_VAL = LLaVa_V15_VAL_Config
 
     LLAVA_MULTIMODAL_ONLY = LLaVa_Multimodal_Only_Config
 

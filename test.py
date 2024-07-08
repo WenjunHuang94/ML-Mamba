@@ -27,7 +27,7 @@ vlm = load(model_id, hf_token=hf_token)
 # }
 #
 # # 保存提取的参数
-# save_path = "./vlm_single_mamba2_130m_model.pth"
+# save_path = "./vlm_projector_mamba2_2.7b_v3_model.pth"
 # torch.save({"model": filtered_state_dict}, save_path)
 #
 # model_state_dict = torch.load(save_path, map_location="cpu")["model"]

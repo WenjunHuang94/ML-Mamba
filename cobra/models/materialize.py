@@ -108,6 +108,7 @@ def get_vlm(
     arch_specifier: str,
     vision_backbone: VisionBackbone,
     llm_backbone: LLMBackbone,
+    llm_backbone_id: str = "",
     enable_mixed_precision_training: bool = True,
 ):
     """Lightweight wrapper around initializing a VLM, mostly for future-proofing (if one wants to add a new VLM)."""
@@ -115,6 +116,7 @@ def get_vlm(
         model_id,
         vision_backbone,
         llm_backbone,
+        llm_backbone_id,
         enable_mixed_precision_training=enable_mixed_precision_training,
         arch_specifier=arch_specifier,
     )

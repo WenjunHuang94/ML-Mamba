@@ -83,6 +83,42 @@ class FusedMLPProjector(nn.Module):
         return self.projector(fused_img_patches)
 
 
+# class MultiModalConnector(nn.Module):
+#     def __init__(self, fused_vision_dim: int, llm_dim: int, hf_hub_path: str, mlp_type: str = "fused-gelu-mlp") -> None:
+#         super().__init__()
+#         self.initial_projection_dim = fused_vision_dim * 4
+#
+#         device = "cuda"
+#         dtype = torch.float32  # 原来的是float16
+#         self.bidirectional_mamba = Bidirectional_Mamba.from_pretrained(hf_hub_path, device=device, dtype=dtype)
+#
+#         if mlp_type == "fused-gelu-mlp":
+#             self.projector = nn.Sequential(  # 图片特征的总dim长度 -> llm_dim
+#                 nn.Linear(fused_vision_dim, self.initial_projection_dim, bias=True),
+#                 nn.GELU(),
+#                 nn.Linear(self.initial_projection_dim, llm_dim, bias=True),
+#                 nn.GELU(),
+#                 nn.Linear(llm_dim, llm_dim, bias=True),
+#             )
+#         else:
+#             raise ValueError(f"Fused Projector with `{mlp_type = }` is not supported!")
+#
+#         self._initialize_weights()  # 使用torch.nn.init.xavier_normal_(m.weight)方法初始化权重。这种初始化方法适用于使用ReLU或GELU等非线性激活函数
+#
+#     def _initialize_weights(self):
+#         for m in self.projector:
+#             if isinstance(m, nn.Linear):
+#                 torch.nn.init.xavier_normal_(m.weight)
+#                 if m.bias is not None:
+#                     torch.nn.init.zeros_(m.bias)  # 使用torch.nn.init.zeros_方法初始化偏置项
+#
+#     def forward(self, fused_img_patches: torch.Tensor) -> torch.Tensor:
+#         output = self.projector(fused_img_patches)
+#         output = self.bidirectional_mamba(output)
+#
+#         return output
+
+
 # LDPv2 Projector: https://github.com/Meituan-AutoML/MobileVLM/blob/main/mobilevlm/model/vision_projector.py
 class TokenDownLayer(nn.Module):
     def __init__(self, shape) -> None:
