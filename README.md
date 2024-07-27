@@ -2,7 +2,7 @@
 
  <h2><img src="./assets/logo-2.png" style='width: 3%'> <a href="https://wenjunhuang94.github.io/ML-Mamba/">ML-Mamba: Efficient Multi-Modal Large Language Model Utilizing Mamba-2</a></h2>
 
-[Wenjun Huang](https://wenjunhuang94.github.io/)
+[Wenjun Huang](https://wenjunhuang94.github.io/), [Jianguo Hu](https://ieeexplore.ieee.org/author/37536384400)
 
 
 
