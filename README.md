@@ -22,7 +22,15 @@ This project is released under the [MIT License](LICENSE.txt)
 
 ## Citation
 ```
-
+@misc{huang2024mlmamba,
+      title={ML-Mamba: Efficient Multi-Modal Large Language Model Utilizing Mamba-2},
+      author={Wenjun Huang and Jianguo Hu},
+      year={2024},
+      eprint={2407.19832},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2407.19832},
+}
 ```
 
 ## Acknowledgement
