@@ -134,21 +134,21 @@ def pretrain(cfg: PretrainConfig) -> None:
 
     # cfg.dataset.type = args.dataset_type
 
-    cfg.global_batch_size = 2   # 2.7b对齐时是批次10，占用显存大约为62G。2.7b微调时是批次3，占用显存大约为72G
-    cfg.per_device_batch_size = 2  # 130m微调时批次为20，占用显存70G
+    cfg.global_batch_size = 2
+    cfg.per_device_batch_size = 2
 
     # cobra\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
     #cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
 
     # （1）注意要去配置里修改下llm_backbone_id ！！！！！！！！！！！！！！！！！！！！
     # （2）注意save_checkpoint里修改下保存的文件名 !!!!!!!!!!!!!
-    #cfg.stage = 'align'  # 对齐训练
+    #cfg.stage = 'align'
     cfg.stage = "finetune"
 
-    #cfg.pretrained_checkpoint = '/home/hwj/program/cobra/vlm_projector_mamba2_2.7b_v3_model.pth'
 
     # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    cfg.pretrained_checkpoint = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/vlm_projector_mamba2_2.7b_v3_model.pth'
+    #cfg.pretrained_checkpoint = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/step-000001-epoch-00-loss=0.6374.pt'
+    cfg.pretrained_checkpoint = '/home/disk2/cobra+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
 
     #cfg.max_steps = 100
 

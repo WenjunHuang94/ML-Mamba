@@ -45,6 +45,20 @@ class LLaVa_V15_Config(DatasetConfig):
     dataset_root_dir: Path = Path("data")
 
 @dataclass
+class LLaVa_V15_220k_Config(DatasetConfig):
+    dataset_id: str = "llava-v15"
+
+    align_stage_components: Tuple[Path, Path] = (
+        Path("download/llava-laion-cc-sbu-558k/chat.json"),
+        Path("download/llava-laion-cc-sbu-558k/"),
+    )
+    finetune_stage_components: Tuple[Path, Path] = (
+        Path("download/llava-v1.5-instruct/lvis_instruct4v_220k.json"),  # Corresponding to the val validation image collection in the coco folder
+        Path("download/llava-v1.5-instruct/"),
+    )
+    dataset_root_dir: Path = Path("data")
+
+@dataclass
 class LLaVa_V15_VAL_Config(DatasetConfig):
     dataset_id: str = "llava-v15"
 
@@ -129,7 +143,8 @@ class DatasetRegistry(Enum):
     # === LLaVa v1.5 ===
     LLAVA_V15 = LLaVa_V15_Config
 
-    #LLAVA_V15_VAL = LLaVa_V15_VAL_Config
+    LLAVA_V15_VAL = LLaVa_V15_VAL_Config
+    LLAVA_V15_220K = LLaVa_V15_220k_Config
 
     LLAVA_MULTIMODAL_ONLY = LLaVa_Multimodal_Only_Config
 
