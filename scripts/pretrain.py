@@ -138,7 +138,6 @@ def pretrain(cfg: PretrainConfig) -> None:
     cfg.per_device_batch_size = 2
 
     # mlmamba\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
-    #cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--mlmamba/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/mlmamba+3b/checkpoints/latest-checkpoint.pt'
 
     # （1）注意要去配置里修改下llm_backbone_id ！！！！！！！！！！！！！！！！！！！！
     # （2）注意save_checkpoint里修改下保存的文件名 !!!!!!!!!!!!!

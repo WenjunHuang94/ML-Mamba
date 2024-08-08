@@ -21,7 +21,7 @@ overwatch = initialize_overwatch(__name__)
 
 
 # === HF Hub Repository ===
-HF_HUB_REPO = "han1997/mlmamba"
+HF_HUB_REPO = "huangwenjun1994/ML-Mamba"
 
 
 # === Available Models ===
@@ -60,17 +60,21 @@ def load(
 
         overwatch.info(f"Downloading `{(model_id := GLOBAL_REGISTRY[model_id_or_path]['model_id'])} from HF Hub")  # model_id_or_path='mlmamba+3b'
 
-        #config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"{model_id}/config.json", cache_dir=cache_dir)  # HF_HUB_REPO='han1997/mlmamba', model_id=''mlmamba+3b' , config_json = '/home/hwj/.cache/huggingface/hub/models--han1997--mlmamba/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/mlmamba+3b/config.json'
-        config_json = '/home/hwj/program/mlmamba/mlmamba/conf/config.json'  # 里面需要改llm_backbone_id
+        #config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"config.json", cache_dir=cache_dir)  # HF_HUB_REPO='han1997/mlmamba', model_id=''mlmamba+3b' , config_json = '/home/hwj/.cache/huggingface/hub/models--han1997--mlmamba/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/mlmamba+3b/config.json'
+        config_json = os.path.join(os.path.dirname(__file__), '..', 'conf', 'config.json')  # 里面需要改llm_backbone_id
 
         # checkpoint_pt = hf_hub_download(  # '/home/hwj/.cache/huggingface/hub/models--han1997--mlmamba/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/mlmamba+3b/checkpoints/latest-checkpoint.pt'
-        #     repo_id=HF_HUB_REPO, filename=f"{model_id}/checkpoints/latest-checkpoint.pt", cache_dir=cache_dir
+        #     repo_id=HF_HUB_REPO,
+        #     filename=f"latest-checkpoint.pt",
+        #     cache_dir=cache_dir,
+        #     use_auth_token=hf_token
         # )
 
+
         # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        #checkpoint_pt = '/home/disk2/cobra+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
+        checkpoint_pt = '/home/disk2/cobra+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
         #checkpoint_pt = '/home/hwj/program/mlmamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint-0624.pt'
-        checkpoint_pt = '/home/hwj/program/mlmamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/vlm_projector_mamba2_2.7b_0807.pth'
+        #checkpoint_pt = '/home/hwj/program/mlmamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/vlm_projector_mamba2_2.7b_0807.pth'
         #checkpoint_pt = '/home/hwj/program/mlmamba/vlm_projector_mamba2_2.7b_v5_model.pth'
 
         # Load Model Config from `config.json`

@@ -84,14 +84,12 @@ vlm.to(device, dtype=dtype) # 不转dtype=bfoat16输出会出错
 
 
 # 图片文件名列表
-image_files = [f'test0.png', f'test1.png', f'test2.png', f'test3.png', f'test4.png', f'test5.png', f'test6.png', f'test7.png', f'test8.png']
+image_files = [f'test0.png', f'test1.png', f'test2.png', f'test3.png', f'test4.png', f'test5.png', f'test6.png']
 
 # 用户提示列表
 user_prompts = [
     "Provide a detailed description of this image",
     "Is the bicycle parked on the right side of the dog?",
-    "Can you describe the image in detail?",
-    "Do you know who drew this painting?",
     "What's unusual about this photo?",
     "What should I pay attention to when I come here?",
     "Can I swim here?",
