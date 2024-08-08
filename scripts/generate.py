@@ -16,8 +16,8 @@ import requests
 import torch
 from PIL import Image
 
-from cobra import load
-from cobra.overwatch import initialize_overwatch
+from mlmamba import load
+from mlmamba.overwatch import initialize_overwatch
 
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
@@ -33,7 +33,7 @@ DEFAULT_IMAGE_URL = (
 class GenerateConfig:
     # fmt: off
     model_path: Union[str, Path] = (                                    # Path to Pretrained VLM (on disk or HF Hub)
-        "cobra+3b"
+        "mlmamba+3b"
     )
 
     # HF Hub Credentials (required for Gated Models like LLaMa-2)
@@ -49,7 +49,7 @@ class GenerateConfig:
 
 @draccus.wrap()
 def generate(cfg: GenerateConfig) -> None:
-    overwatch.info(f"Initializing Generation Playground with Cobra `{cfg.model_path}`")
+    overwatch.info(f"Initializing Generation Playground with MLMamba `{cfg.model_path}`")
     hf_token = cfg.hf_token.read_text().strip() if isinstance(cfg.hf_token, Path) else os.environ[cfg.hf_token]
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
@@ -65,7 +65,7 @@ def generate(cfg: GenerateConfig) -> None:
 
     # REPL Welcome Message
     print(
-        "[*] Dropping into Cobra VLM REPL with Default Generation Setup => Initial Conditions:\n"
+        "[*] Dropping into MLMamba VLM REPL with Default Generation Setup => Initial Conditions:\n"
         f"       => Prompt Template:\n\n{prompt_builder.get_potential_prompt('<INSERT PROMPT HERE>')}\n\n"
         f"       => Default Image URL: `{DEFAULT_IMAGE_URL}`\n===\n"
     )

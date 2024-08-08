@@ -1,7 +1,7 @@
 """
 pretrain.py
 
-Pretraining script for Cobra VLM pretraining in native PyTorch, using Fully-Sharded Data Parallel (FSDP) to run
+Pretraining script for MLMamba VLM pretraining in native PyTorch, using Fully-Sharded Data Parallel (FSDP) to run
 distributed training across GPUs. By default, assumes that CUDA toolkit is >= 11.0 (to support BF16 mixed precision).
 
 
@@ -25,12 +25,12 @@ import torch
 import torch.distributed as dist
 import yaml
 
-from cobra.conf import DatasetConfig, DatasetRegistry, ModelConfig, ModelRegistry
-from cobra.models import get_llm_backbone_and_tokenizer, get_vision_backbone_and_transform, get_vlm
-from cobra.overwatch import initialize_overwatch
-from cobra.preprocessing import get_dataset_and_collator
-from cobra.training import Metrics, get_train_strategy
-from cobra.util import set_global_seed
+from mlmamba.conf import DatasetConfig, DatasetRegistry, ModelConfig, ModelRegistry
+from mlmamba.models import get_llm_backbone_and_tokenizer, get_vision_backbone_and_transform, get_vlm
+from mlmamba.overwatch import initialize_overwatch
+from mlmamba.preprocessing import get_dataset_and_collator
+from mlmamba.training import Metrics, get_train_strategy
+from mlmamba.util import set_global_seed
 
 import argparse
 
@@ -45,12 +45,12 @@ overwatch = initialize_overwatch(__name__)
 class PretrainConfig:
     # fmt: off
 
-    # ModelConfig (`cobra/conf/models.py`); override with --model.type `ModelRegistry.<MODEL>.model_id`
+    # ModelConfig (`mlmamba/conf/models.py`); override with --model.type `ModelRegistry.<MODEL>.model_id`
     model: ModelConfig = field(
-        default_factory=ModelConfig.get_choice_class(ModelRegistry.COBRA_3B.model_id)
+        default_factory=ModelConfig.get_choice_class(ModelRegistry.MLMAMBA_3B.model_id)
     )
 
-    # DatasetConfig (`cobra/conf/datasets.py`); override with --dataset.type `DatasetRegistry.<DATASET>.dataset_id`
+    # DatasetConfig (`mlmamba/conf/datasets.py`); override with --dataset.type `DatasetRegistry.<DATASET>.dataset_id`
     dataset: DatasetConfig = field(
         default_factory=DatasetConfig.get_choice_class(DatasetRegistry.LLAVA_V15.dataset_id)  # 换成LVIS-Instruct-4V
     )
@@ -71,7 +71,7 @@ class PretrainConfig:
 
     # Tracking Parameters
     trackers: Tuple[str, ...] = ("jsonl", "wandb")                  # Trackers to initialize (if W&B, add config!)
-    wandb_project: str = "cobra"                                # Name of W&B project (default: `cobra`)
+    wandb_project: str = "mlmamba"                                # Name of W&B project (default: `mlmamba`)
     wandb_entity: Optional[str] = None                              # Name of W&B entity (default: None)
 
     def __post_init__(self) -> None:
@@ -117,7 +117,7 @@ def pretrain(cfg: PretrainConfig) -> None:
     # parser.add_argument("--vision_backbone_id", type=str, default="dinosiglip-vit-so-384px")
     # parser.add_argument("--image_resize_strategy", type=str, default="resize-naive")
     # parser.add_argument("--llm_backbone_id", type=str, default="mamba-2.8b-zephyr")
-    # parser.add_argument("--model_type", type=str, default="cobra+3b")
+    # parser.add_argument("--model_type", type=str, default="mlmamba+3b")
     # parser.add_argument("--finetune_global_batch_size", type=int, default=128)
     # parser.add_argument("--finetune_per_device_batch_size", type=int, default=8)
     # parser.add_argument("--dataset_type", type=str, default="llava-lvis4v-lrv")
@@ -137,8 +137,8 @@ def pretrain(cfg: PretrainConfig) -> None:
     cfg.global_batch_size = 2
     cfg.per_device_batch_size = 2
 
-    # cobra\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
-    #cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--cobra/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/cobra+3b/checkpoints/latest-checkpoint.pt'
+    # mlmamba\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
+    #cfg.pretrained_checkpoint = '/home/hwj/.cache/huggingface/hub/models--han1997--mlmamba/snapshots/c0492c5669800aba9b90d2df3c403497ebea5f1f/mlmamba+3b/checkpoints/latest-checkpoint.pt'
 
     # （1）注意要去配置里修改下llm_backbone_id ！！！！！！！！！！！！！！！！！！！！
     # （2）注意save_checkpoint里修改下保存的文件名 !!!!!!!!!!!!!
@@ -147,20 +147,20 @@ def pretrain(cfg: PretrainConfig) -> None:
 
 
     # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #cfg.pretrained_checkpoint = '/home/hwj/program/cobra/scripts/runs/cobra+3b+stage-finetune+x7/checkpoints/step-000001-epoch-00-loss=0.6374.pt'
-    cfg.pretrained_checkpoint = '/home/disk2/cobra+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
+    cfg.pretrained_checkpoint = '/home/hwj/program/mlmamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/step-003159-epoch-00-loss=0.9304.pt'
+    #cfg.pretrained_checkpoint = '/home/disk2/mlmamba+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
 
     #cfg.max_steps = 100
 
     import torch
     os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29504'  # 区别cobra-origin
+    os.environ['MASTER_PORT'] = '29504'  # 区别mlmamba-origin
     os.environ['RANK'] = '0'
     os.environ['WORLD_SIZE'] = '1'
     os.environ['LOCAL_RANK'] = '0'
     dist.init_process_group(backend='nccl')
 
-    overwatch.info("Cobra VLM Training :: Gathering Light")
+    overwatch.info("MLMamba VLM Training :: Gathering Light")
 
     # Note => Under `torchrun` initializing `overwatch` will automatically set up `torch.distributed`
     torch.cuda.set_device(device_id := (overwatch.rank() % torch.cuda.device_count()))
@@ -179,7 +179,7 @@ def pretrain(cfg: PretrainConfig) -> None:
     hf_token = cfg.hf_token.read_text().strip() if isinstance(cfg.hf_token, Path) else os.environ[cfg.hf_token]
     print('hf_token = ', hf_token)
     worker_init_fn = set_global_seed(cfg.seed, get_worker_init_fn=True)  # 使用相同的随机数种子，确保可复现性
-    os.makedirs(run_dir := (cfg.run_root_dir / cfg.run_id), exist_ok=True)  # run_dir = PosixPath('runs/cobra+3b+stage-finetune+x7')
+    os.makedirs(run_dir := (cfg.run_root_dir / cfg.run_id), exist_ok=True)  # run_dir = PosixPath('runs/mlmamba+3b+stage-finetune+x7')
     os.makedirs(cfg.run_root_dir / cfg.run_id / "checkpoints", exist_ok=True)
     if overwatch.is_rank_zero():
         # Additionally save a JSON version of the config
@@ -201,7 +201,7 @@ def pretrain(cfg: PretrainConfig) -> None:
     )
 
     # Create VLM => wraps `vision_backbone` and `llm`
-    overwatch.info(f"Instantiating CobraVLM `{model_id}` for Training Stage = `{cfg.stage}`")
+    overwatch.info(f"Instantiating MLMambaVLM `{model_id}` for Training Stage = `{cfg.stage}`")
     vlm = get_vlm(
         model_id,
         cfg.model.arch_specifier,
@@ -226,7 +226,7 @@ def pretrain(cfg: PretrainConfig) -> None:
         cfg.dataset,  # LLaVa_V15_Config(dataset_id='llava-v15', align_stage_components=(PosixPath('download/llava-laion-cc-sbu-558k/chat.json'), PosixPath('download/llava-laion-cc-sbu-558k')), finetune_stage_components=(PosixPath('download/llava-v1.5-instruct/llava_v1_5_mix665k.json'), PosixPath('download/llava-v1.5-instruct')), dataset_root_dir=PosixPath('data'))
         image_transform,
         tokenizer,
-        prompt_builder_fn=llm_backbone.prompt_builder_fn,  # <class 'cobra.models.backbones.llm.prompting.zephyr_prompter.ZephyrChatPromptBuilder'>
+        prompt_builder_fn=llm_backbone.prompt_builder_fn,  # <class 'mlmamba.models.backbones.llm.prompting.zephyr_prompter.ZephyrChatPromptBuilder'>
         default_image_resolution=vision_backbone.default_image_resolution,  # (3, 384, 384)
         padding_side=tokenizer.padding_side,  # 'right'
     )
@@ -328,3 +328,6 @@ def pretrain(cfg: PretrainConfig) -> None:
 
 if __name__ == "__main__":
     pretrain()
+
+
+

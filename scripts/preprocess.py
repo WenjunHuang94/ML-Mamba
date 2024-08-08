@@ -15,8 +15,8 @@ from pathlib import Path
 
 import draccus
 
-from cobra.overwatch import initialize_overwatch
-from cobra.preprocessing import convert_to_jpg, download_extract
+from mlmamba.overwatch import initialize_overwatch
+from mlmamba.preprocessing import convert_to_jpg, download_extract
 
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)

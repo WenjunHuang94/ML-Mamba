@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 from pathlib import Path
 
-from cobra import load
+from mlmamba import load
 
 hf_token = Path(".hf_token").read_text().strip()
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -12,21 +12,20 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16  # torch.bfloat16
 
 # Load a pretrained VLM (either local path, or ID to auto-download from the HF Hub) 
-model_id = "cobra+3b"
+model_id = "mlmamba+3b"
 vlm = load(model_id, hf_token=hf_token)
 
 # # 获取整个模型的state_dict
 # state_dict = vlm.state_dict()
 #
 # # 提取llm_backbone和projector部分的参数并调整键
-# # 这里是因为load_state_dict_hf("state-spaces/mamba2-2.7b")时对应的是CobraVLM.llm_backbone.llm的模块参数，所以我们也要对应的只存这里
+# # 这里是因为load_state_dict_hf("state-spaces/mamba2-2.7b")时对应的是MLMambaVLM.llm_backbone.llm的模块参数，所以我们也要对应的只存这里
 # filtered_state_dict = {
 #     "llm_backbone": {k[len("llm_backbone.llm."):]: v for k, v in state_dict.items() if k.startswith("llm_backbone.llm.")},
 #     "mlp": {k[len("mlp."):]: v for k, v in state_dict.items() if k.startswith("mlp.")},
 #     "bidirectional_mamba": {k[len("bidirectional_mamba."):]: v for k, v in state_dict.items() if k.startswith("bidirectional_mamba.")},
 #     "projector": {k[len("projector."):]: v for k, v in state_dict.items() if k.startswith("projector.")}
 # }
-#
 # # 保存提取的参数
 # save_path = "./vlm_projector_mamba2_2.7b_v5_model.pth"
 # torch.save({"model": filtered_state_dict}, save_path)
@@ -46,7 +45,7 @@ vlm = load(model_id, hf_token=hf_token)
 #     print(module)
 #
 # # 检查整个模型的参数数据类型
-# print("Data types of all parameters in CobraVLM:")
+# print("Data types of all parameters in MLMambaVLM:")
 # for name, param in vlm.named_parameters():
 #     print(f"{name}: {param.dtype}")
 
@@ -112,7 +111,7 @@ generate_params = {
 
 for image_file, user_prompt in zip(image_files, user_prompts):
     # 打开并转换图像
-    image = Image.open(image_file).convert("RGB")
+    image = Image.open("pic/" + image_file).convert("RGB")
 
     # 创建prompt
     prompt_builder = vlm.get_prompt_builder()

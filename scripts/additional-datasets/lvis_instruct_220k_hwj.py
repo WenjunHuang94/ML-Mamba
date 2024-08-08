@@ -27,15 +27,10 @@ from mlmamba.preprocessing.download import download_with_progress
 
 # === Constants ===
 DATA_URL = "https://huggingface.co/datasets/X2FD/LVIS-Instruct4V/resolve/main/lvis_instruct4v_220k.json"
-
-#DOWNLOAD_DIR = Path("data/download/llava-v1.5-instruct")
-DOWNLOAD_DIR = Path("../data/download/llava-v1.5-instruct")  # 自己修改的
-
+DOWNLOAD_DIR = Path("data/download/llava-v1.5-instruct")
 RAW_JSON_FILE = DOWNLOAD_DIR / "lvis_instruct4v_220k.json"
 
-# JSON Files for "merged" variant of the dataset (with `llava_v1_5_mix665k.json`)
-BASE_JSON_FILE = DOWNLOAD_DIR / "llava_v1_5_mix665k.json"
-MERGED_JSON_FILE = DOWNLOAD_DIR / "llava_v1_5_lvis4v_mix888k.json"
+NEW_JSON_FILE = DOWNLOAD_DIR / "lvis_instruct4v_220k_new.json"
 
 
 def build_lvis_instruct_4v() -> None:
@@ -54,25 +49,11 @@ def build_lvis_instruct_4v() -> None:
     with open(RAW_JSON_FILE, "r") as f:
         data = json.load(f)
 
-    # Iterate & Verify
-    for example in tqdm(data, desc="[*] Verifying all Images in LVIS Instruct4V"):
-        image_path = example["image"]
-        assert (DOWNLOAD_DIR / image_path).exists(), f"Missing Image `{image_path}`"
 
-    # Create Stacked Dataset =>> Shuffle for Good Measure!
-    print("[*] Loading LLaVa v1.5 Data!")
-    with open(BASE_JSON_FILE, "r") as f:
-        llava_v15_data = json.load(f)
+    random.shuffle(data)
 
-    # Combine & Shuffle & Write
-    full_data = llava_v15_data + data
-
-    random.shuffle(full_data)
-    random.shuffle(full_data)
-    random.shuffle(full_data)
-
-    with open(MERGED_JSON_FILE, "w") as f:
-        json.dump(full_data, f)
+    with open(NEW_JSON_FILE, "w") as f:
+        json.dump(data, f)
 
 
 if __name__ == "__main__":
