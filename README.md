@@ -1,4 +1,4 @@
-# MLMamba: Extending Mamba to Multi-modal Large Language Model for Efficient Inference
+# ML-Mamba: Efficient Multi-Modal Large Language Model Utilizing Mamba-2
 
 [![arXiv](https://img.shields.io/badge/arXiv-2403.14520-df2a2a.svg?style=for-the-badge)](https://arxiv.org/abs/2403.14520)
 [![Model](https://img.shields.io/badge/Model-Huggingface-FFD21E.svg?style=for-the-badge)](https://huggingface.co/han1997/mlmamba)
