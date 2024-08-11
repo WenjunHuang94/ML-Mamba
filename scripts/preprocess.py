@@ -15,8 +15,8 @@ from pathlib import Path
 
 import draccus
 
-from cobra.overwatch import initialize_overwatch
-from cobra.preprocessing import convert_to_jpg, download_extract
+from mlmamba.overwatch import initialize_overwatch
+from mlmamba.preprocessing import convert_to_jpg, download_extract
 
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
@@ -37,7 +37,7 @@ def preprocess(cfg: PreprocessConfig) -> None:
     download_extract(cfg.dataset_id, root_dir=cfg.root_dir)
 
     # Special Handling for OCR VQA Images (for `llava-v1.5-instruct`) --> convert GIFs/PNGs to JPG
-    if cfg.dataset_id == "llava-v1.5-instruct":
+    if cfg.dataset_id == "llava-v1.5-instruct":  # ocr_vqa需要将图片转为JPG格式
         convert_to_jpg(cfg.root_dir / "download" / cfg.dataset_id / "ocr_vqa" / "images")
 
 

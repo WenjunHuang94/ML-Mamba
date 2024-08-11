@@ -1,0 +1,3 @@
+[submodule "mamba"]
+	path = mamba
+	url = https://github.com/WenjunHuang94/mamba

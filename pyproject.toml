@@ -3,11 +3,11 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cobra-vlm"
+name = "mlmamba-vlm"
 authors = [
-    {name = "Han Zhao", email="zhaohan34@westlake.edu.cn"}
+    {name = "Wenjun Huang", email="huangwj98@mail2.sysu.edu.cn"}
 ]
-description = "Cobra: Extending Mamba to Multi-Modal Large Language Model for Efficient Inference"
+description = "MLMamba: Efficient Multi-Modal Large Language Model Utilizing Mamba-2"
 version = "0.0.1"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -51,16 +51,16 @@ dev = [
 ]
 
 [project.urls]
-homepage = "https://github.com/h-zhao1997/cobra"
-repository = "https://github.com/h-zhao1997/cobra"
-documentation = "https://github.com/h-zhao1997/cobra"
+homepage = "https://github.com/WenjunHuang94/ML-Mamba"
+repository = "https://github.com/WenjunHuang94/ML-Mamba"
+documentation = "https://github.com/WenjunHuang94/ML-Mamba"
 
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["cache"]
 
 [tool.setuptools.package-data]
-"cobra" = ["py.typed"]
+"mlmamba" = ["py.typed"]
 
 [tool.black]
 line-length = 121
