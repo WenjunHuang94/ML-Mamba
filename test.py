@@ -121,4 +121,4 @@ for image_file, user_prompt in zip(image_files, user_prompts):
     # 生成文本
     generated_text = vlm.generate(**generate_params)
 
-    print(f'Image {image_file}: generated_text = ', generated_text)
+    print(f'Image {image_file}: user_prompt {user_prompt}: generated_text = {generated_text}')
