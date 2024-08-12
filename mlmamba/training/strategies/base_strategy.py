@@ -245,15 +245,15 @@ class TrainingStrategy(ABC):
 
 
                     current_time = time.time()
-                    #if current_time - start_time >= 3600:  # Check if an hour has passed
-                    if True:
+                    if current_time - start_time >= 7200:  # Check if two hour has passed
+                    #if True:
                         hour_counter += 1
                         self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
 
                         dist.barrier()
                         start_time = time.time()  # Reset start time
 
-                        break  # Adjustment trial
+                        #break  # Adjustment trial
 
             # Save checkpoint at end each epoch (if `self.max_steps` is None)
             self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())

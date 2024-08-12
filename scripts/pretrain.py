@@ -131,31 +131,25 @@ def pretrain(cfg: PretrainConfig) -> None:
     # cfg.model.finetune_global_batch_size = args.finetune_global_batch_size
     # cfg.model.finetune_per_device_batch_size = args.finetune_per_device_batch_size
 
-
     # cfg.dataset.type = args.dataset_type
 
-    cfg.global_batch_size = 2
-    cfg.per_device_batch_size = 2
-
-    # mlmamba\models\load.py中的load函数中，checkpoint_pt可知最新的latest-checkpoint
+    cfg.global_batch_size = 2  # Fill in the data batch during training
+    cfg.per_device_batch_size = 2  # Fill in the data batch during training
 
     # （1）注意要去配置里修改下llm_backbone_id!!!
     # （2）注意save_checkpoint里修改下保存的文件名!!!
-    #cfg.stage = 'align'
-    cfg.stage = "finetune"
+    cfg.stage = "finetune"  # finetune or align
 
-
-    # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #cfg.pretrained_checkpoint = '/home/hwj/program/mlmamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/step-003159-epoch-00-loss=0.9304.pt'
-    cfg.pretrained_checkpoint = '/home/disk2/mlmamba+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
+    # Manually fill in the checkpoint path for ML-Mamba!!!
+    cfg.pretrained_checkpoint = '/home/hwj/program/ML-Mamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-checkpoint.pt'
 
     #cfg.max_steps = 100
 
     import torch
     os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29504'  # 区别mlmamba-origin
+    os.environ['MASTER_PORT'] = '29504'
     os.environ['RANK'] = '0'
-    os.environ['WORLD_SIZE'] = '1'
+    os.environ['WORLD_SIZE'] = '1'  # If it is a single GPU training
     os.environ['LOCAL_RANK'] = '0'
     dist.init_process_group(backend='nccl')
 

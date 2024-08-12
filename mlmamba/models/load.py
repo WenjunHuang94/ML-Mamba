@@ -63,18 +63,15 @@ def load(
         #config_json = hf_hub_download(repo_id=HF_HUB_REPO, filename=f"config.json", cache_dir=cache_dir)
         config_json = os.path.join(os.path.dirname(__file__), '..', 'conf', 'config.json')  # 里面需要改llm_backbone_id
 
-        # checkpoint_pt = hf_hub_download(
-        #     repo_id=HF_HUB_REPO,
-        #     filename=f"latest-checkpoint.pt",
-        #     cache_dir=cache_dir,
-        #     use_auth_token=hf_token
-        # )
 
-
-        # 注意是aligin还是finetune!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        checkpoint_pt = '/home/disk2/cobra+3b+stage-finetune+x7/step-332649-epoch-00-loss=0.7296.pt'
-        #checkpoint_pt = '/home/hwj/program/mlmamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-vlm-mamba2-2.7b-checkpoint-0624.pt'
-
+        checkpoint_pt = hf_hub_download(
+            repo_id=HF_HUB_REPO,
+            filename=f"latest-checkpoint.pt",
+            cache_dir=cache_dir,
+            use_auth_token=hf_token
+        )
+        # Manually fill in the checkpoint path for ML-Mamba
+        # checkpoint_pt = '/home/hwj/program/ML-Mamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-checkpoint.pt'
 
     # Load Model Config from `config.json`
     with open(config_json, "r") as f:
