@@ -8,7 +8,9 @@
 [![Model](https://img.shields.io/badge/Model-Huggingface-FFD21E.svg?style=for-the-badge)](https://huggingface.co/huangwenjun1994/ML-Mamba)
 
 
-![teaser](./assets/arch.png)
+<img src="./assets/arch.png" style='width: 75%'>
+
+
 </div>
 
 ## Introduction
@@ -43,8 +45,6 @@ git clone https://github.com/WenjunHuang94/ML-Mamba
 cd ML-Mamba
 pip install -e .
 
-
-
 # install mamba and other packages
 cd causal-conv1d-main && pip install -e .
 cd .. && git clone https://github.com/WenjunHuang94/mamba
@@ -68,7 +68,7 @@ If you run into any problems during the installation process, please file a GitH
 
 Once installed, loading and running inference with pretrained `ML-Mamba` models is easy:
 
-**First, you need to create a .hf_token file in the ML-Mamba project directory and fill in your Huggingface token.**
+*First, you need to create a **.hf_token** file in the ML-Mamba project directory and fill in your Huggingface token.*
 
 ```python
 import requests
@@ -82,47 +82,32 @@ from mlmamba import load
 hf_token = Path(".hf_token").read_text().strip()
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 # In case your GPU does not support bf16
-dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16 
 
 # Load a pretrained VLM (either local path, or ID to auto-download from the HF Hub) 
 model_id = "mlmamba+3b"
 vlm = load(model_id, hf_token=hf_token)
+
 vlm.to(device, dtype=dtype)
+image = Image.open("pic/test0.png").convert("RGB")
+user_prompt = "Provide a detailed description of this image"
 
+# Build prompt
+prompt_builder = vlm.get_prompt_builder()
+prompt_builder.add_turn(role="human", message=user_prompt)
+prompt_text = prompt_builder.get_prompt()
 
-# List of Image File Names
-image_files = [f'test0.png', f'test1.png', f'test2.png']
+# Generate!
+generated_text = vlm.generate(
+    image,
+    prompt_text,
+    use_cache=True,
+    do_sample=True,
+    temperature=1.0,
+    max_new_tokens=512,
+)
 
-# User prompt list
-user_prompts = [
-    "Provide a detailed description of this image",
-    "Is the bicycle parked on the right side of the dog?",
-    "What's unusual about this photo?",
-]
-
-# Generation Parameters
-generate_params = {
-    'use_cache': True,
-    'do_sample': True,
-    'temperature': 1.0,
-    'max_new_tokens': 256
-}
-
-for image_file, user_prompt in zip(image_files, user_prompts):
-    image = Image.open("pic/" + image_file).convert("RGB")
-
-    # Create prompt
-    prompt_builder = vlm.get_prompt_builder()
-    prompt_builder.add_turn(role="human", message=user_prompt)
-    prompt_text = prompt_builder.get_prompt()
-
-    # Update generation parameters
-    generate_params['image'] = image
-    generate_params['prompt_text'] = prompt_text
-
-    # generated text
-    generated_text = vlm.generate(**generate_params)
-    print(f'Image {image_file}: user_prompt {user_prompt}: generated_text = ', generated_text)
+print(f'user_prompt : {user_prompt} \ngenerated_text : {generated_text}')
 ```
 
 For a complete terminal-based CLI for interacting with our VLMs, check out [scripts/generate.py](https://github.com/WenjunHuang94/ML-Mamba/blob/main/scripts/generate.py). 
@@ -153,7 +138,7 @@ python scripts/preprocess.py --dataset_id "llava-laion-cc-sbu-558k" --root_dir <
 #### Model Configuration & Training Script
 Here's how you would train ML-Mamba follow the training recipe in our paper across 8 GPUs on a single-node: 
 
-**First, you need to create a .hf_token file in the ML-Mamba/scripts project directory and fill in your Huggingface token.**
+*First, you need to create a **.hf_token** file in the ML-Mamba/scripts project directory and fill in your Huggingface token.*
 
 ```bash
 # Run from the root of the repository
