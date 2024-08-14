@@ -151,5 +151,5 @@ runs/
 results/
 
 # Test scripts
-test*.py
-*.sh
+#test*.py
+#*.sh
