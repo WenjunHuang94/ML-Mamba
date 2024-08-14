@@ -143,4 +143,4 @@ This project is released under the [MIT License](LICENSE.txt)
 
 ## Acknowledgement
 
-This repository is built based on [LLaVA](https://github.com/haotian-liu/LLaVA),  [Mamba](https://github.com/state-spaces/mamba) and [Transformers](https://github.com/JLTastet/transformers/tree/mamba) for their public code release.
+This repository is built based on [LLaVA](https://github.com/haotian-liu/LLaVA),  [Mamba](https://github.com/state-spaces/mamba), [Transformers](https://github.com/JLTastet/transformers/tree/mamba), and [Cobra](https://github.com/h-zhao1997/cobra) for their public code release.
