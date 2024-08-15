@@ -116,7 +116,7 @@ def pretrain(cfg: PretrainConfig) -> None:
     #
     # parser.add_argument("--vision_backbone_id", type=str, default="dinosiglip-vit-so-384px")
     # parser.add_argument("--image_resize_strategy", type=str, default="resize-naive")
-    # parser.add_argument("--llm_backbone_id", type=str, default="mamba-2.8b-zephyr")
+    # parser.add_argument("--llm_backbone_id", type=str, default="mamba2-2.7b")
     # parser.add_argument("--model_type", type=str, default="mlmamba+3b")
     # parser.add_argument("--finetune_global_batch_size", type=int, default=128)
     # parser.add_argument("--finetune_per_device_batch_size", type=int, default=8)
@@ -136,14 +136,13 @@ def pretrain(cfg: PretrainConfig) -> None:
     cfg.global_batch_size = 2  # Fill in the data batch during training
     cfg.per_device_batch_size = 2  # Fill in the data batch during training
 
-    # (1) Please make sure to modify the llm_backbone_id in the configuration settings!!!
-    # (2) Please modify the saved file name in save_checkpoint!!!
+    # (1) Please make sure to modify the llm_backbone_id in the configuration settings!
+    # (2) Please modify the saved file name in save_checkpoint!
     cfg.stage = "finetune"  # finetune or align
 
     # Manually fill in the checkpoint path for ML-Mamba!!!
     cfg.pretrained_checkpoint = './latest-checkpoint.pt'
 
-    #cfg.max_steps = 100
 
     import torch
     os.environ['MASTER_ADDR'] = '127.0.0.1'

@@ -9,7 +9,7 @@
 </div>
 
 ## Introduction
-Multimodal Large Language Models (MLLMs) have attracted much attention due to their multifunctionality. However, traditional Transformer architectures incur significant overhead due to their secondary computational complexity. To address this issue, we introduced ML-Mamba, a multimodal language model that utilizes the latest and efficient Mamba-2 model for inference. Mamba-2 is known for its linear extension and fast processing of long sequences. We replaced the Transformer based backbone with a pre trained Mamba-2 model and explored methods for integrating 2D visual selective scanning mechanisms into multimodal learning. We also tried various visual encoders and Mamba-2 model variants. Our extensive experiments conducted in various multimodal benchmark tests have demonstrated the competitive performance of ML-Mamba and highlighted the potential of state space models in multimodal tasks. The experimental results show that: (1) ML-Mamba achieves performance comparable to state-of-the-art methods such as TinyLaVA and MobileVLM v2 through its linear sequential modeling, while also having faster inference speed; (2) ML-Mamba performs well in visual hallucinations and spatial relationship judgment in closed set benchmark tests; (3) ML-Mamba achieved performance comparable to LLaVA while reducing the number of parameters by 40\%.(4) Compared to the multimodal model using the original Mamba model, the Mamba-2 based large-scale multimodal language model has stronger inference performance and effectiveness. We will open source ML-Mamba to promote research on computational complexity in MLLMs.
+Multimodal Large Language Models (MLLMs) have attracted much attention for their multifunctionality. However, traditional Transformer architectures incur significant overhead due to their secondary computational complexity. To address this issue, we introduce ML-Mamba, a multimodal language model, which utilizes the latest and efficient Mamba-2 model for inference. Mamba-2 is known for its linear scalability and fast processing of long sequences. We replace the Transformer-based backbone with a pre-trained Mamba-2 model and explore methods for integrating 2D visual selective scanning mechanisms into multimodal learning while also trying various visual encoders and Mamba-2 model variants. Our extensive experiments in various multimodal benchmark tests demonstrate the competitive performance of ML-Mamba and highlight the potential of state space models in multimodal tasks. The experimental results show that: (1) We empirically explore the application of 2D visual selective scanning in multimodal learning and propose the Mamba-2 Scan Connector (MSC) to enhance representational capabilities. (2)  ML-Mamba achieves performance comparable to state-of-the-art methods such as TinyLaVA and MobileVLM v2 through its linear sequential modeling while faster inference speed; (3) Compared to multimodal models utilizing Mamba-1, the Mamba-2-based ML-Mamba exhibits superior inference performance and effectiveness.
 
 
 [**Installation**](#installation) | [**Usage**](#usage) | [**Training VLMs**](#training-vlms) | [**License**](#license)
@@ -126,7 +126,7 @@ torchrun --standalone --nnodes 1 --nproc-per-node 8 scripts/pretrain.py \
   --model.type "mlmamba+3b" \
   --model.finetune_global_batch_size 128 \
   --model.finetune_per_device_batch_size 8 \
-  --dataset.type "llava-lvis4v-lrv"
+  --dataset.type "llava-v15"
 ```
 
 ---
