@@ -2,7 +2,7 @@
 
  <h2><img src="./assets/logo-2.png" style='width: 3%'> <a href="https://wenjunhuang94.github.io/ML-Mamba/">ML-Mamba: Efficient Multi-Modal Large Language Model Utilizing Mamba-2</a></h2>
 
-[Wenjun Huang](https://wenjunhuang94.github.io/), [Jianguo Hu](https://ieeexplore.ieee.org/author/37536384400)
+[Wenjun Huang](https://wenjunhuang94.github.io/), [Jiakai Pan](https://openreview.net/profile?id=~Pan_Jiakai1), [Jiahao Tang](https://openreview.net/profile?id=~Jiahao_Tang2), [Yanyu Ding](https://openreview.net/profile?id=~Yanyu_Ding1), [Yifei Xing](https://openreview.net/profile?id=~Yifei_Xing1), [Yuhe Wang](https://openreview.net/profile?id=~Yuhe_Wang2), [Zhengzhuo Wang](https://openreview.net/profile?id=~Zhengzhuo_Wang1), [Jianguo Hu](https://ieeexplore.ieee.org/author/37536384400)
 
 [![arXiv](https://img.shields.io/badge/arXiv-2407.19832-df2a2a.svg?style=for-the-badge)](https://arxiv.org/abs/2407.19832)
 [![Model](https://img.shields.io/badge/Model-Huggingface-FFD21E.svg?style=for-the-badge)](https://huggingface.co/huangwenjun1994/ML-Mamba)
