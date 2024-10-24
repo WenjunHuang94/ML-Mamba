@@ -139,7 +139,8 @@ class DinoSigLIPViTBackbone(VisionBackbone):
         dino_patches = self.dino_featurizer(pixel_values["dino"])
         siglip_patches = self.siglip_featurizer(pixel_values["siglip"])
 
-        return torch.cat([dino_patches, siglip_patches], dim=2)
+        #return torch.cat([dino_patches, siglip_patches], dim=2)
+        return torch.cat([dino_patches[0], siglip_patches[0]], dim=2)
 
     @property
     def default_image_resolution(self) -> Tuple[int, int, int]:

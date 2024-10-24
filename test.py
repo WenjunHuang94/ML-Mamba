@@ -126,63 +126,59 @@ for image_file, user_prompt in zip(image_files, user_prompts):
     print(f'Image {image_file}: generated_text = ', generated_text)
 
 
-# import time
-#
-# # 设置生成参数
-# generate_params = {
-#     'image': image,
-#     'prompt_text': prompt_text,
-#     'use_cache': True,
-#     'do_sample': True,
-#     'temperature': 1.0,
-#     'max_new_tokens': 256
-# }
-#
-# # 记录总时间
-# total_time = 0
-# num_iterations = 50
-#
-# # 分词器（假设你有一个分词器来计算令牌数）
-# def count_tokens(text):
-#     # 示例分词器函数，实际使用时需要替换为你的分词器
-#     return len(text.split())
-#
-#
-#
-# # 开始计时
-# start_time = time.time()
-#
-# total_tokens = 0
-#
-# for i in range(num_iterations):
-#     # 生成文本
-#     generated_text = vlm.generate(**generate_params)
-#
-#     # 计算生成文本中的令牌数量
-#     #tokens = count_tokens(generated_text)
-#     #total_tokens += 256
-#
-#     # print(f'Iteration {i + 1}: generated_text = ', generated_text)
-#     # print(f'Iteration {i + 1}: len(generated_text) = ', len(generated_text))
-#     #print(f'Iteration {i + 1}: tokens = ', tokens)
-#
-# # 结束计时
-# end_time = time.time()
-# total_time = (end_time - start_time)
-#
-# # 计算平均每次生成的时间
-# average_time = total_time / num_iterations
-#
-# # 每秒生成的令牌数量
-# Eval_avg = 256 / average_time
-#
-# print(f'Average time per generation: {average_time:.4f} seconds')
-# print(f'Eval_avg (tokens per second): {Eval_avg:.2f}')
-#
-# print(f'generated_text = ', generated_text)
 
 
-#print('generated_text = ', generated_text)
+
+import time
+
+image = Image.open("pic/" + "test0.png").convert("RGB")
+# 创建prompt
+prompt_builder = vlm.get_prompt_builder()
+prompt_builder.add_turn(role="human", message="Provide a detailed description of this image")
+prompt_text = prompt_builder.get_prompt()
+
+# 设置生成参数
+generate_params = {
+    'image': image,
+    'prompt_text': prompt_text,
+    'use_cache': True,
+    'do_sample': True,
+    'temperature': 1.0,
+    'max_new_tokens': 256
+}
+
+# 记录总时间
+total_time = 0
+num_iterations = 200
+
+
+# 开始计时
+start_time = time.time()
+
+total_tokens = 0
+
+for i in range(num_iterations):
+    # 生成文本
+    generated_text = vlm.generate(**generate_params)
+
+
+# 结束计时
+end_time = time.time()
+total_time = (end_time - start_time)
+
+# 计算平均每次生成的时间
+average_time = total_time / num_iterations
+
+# 每秒生成的令牌数量
+Eval_avg = 256 / average_time
+
+print(f'Average time per generation: {average_time:.4f} seconds')
+print(f'Eval_avg (tokens per second): {Eval_avg:.2f}')
+
+print(f'generated_text = ', generated_text)
+
+
+print('generated_text = ', generated_text)
 
 
 
