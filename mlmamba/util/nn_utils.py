@@ -37,6 +37,15 @@ class MLPProjector(nn.Module):
         return self.projector(img_patches)
 
 
+class LoRA(nn.Module):
+    def __init__(self, in_features, out_features, r):
+        super(LoRA, self).__init__()
+        self.A = nn.Parameter(torch.randn(out_features, r))
+        self.B = nn.Parameter(torch.randn(r, in_features))
+
+    def forward(self, x):
+        return x @ self.B.T @ self.A.T
+
 class FusedMLPProjector(nn.Module):
     def __init__(self, fused_vision_dim: int, llm_dim: int, mlp_type: str = "fused-gelu-mlp") -> None:
         super().__init__()
@@ -63,6 +72,57 @@ class FusedMLPProjector(nn.Module):
 
     def forward(self, fused_img_patches: torch.Tensor) -> torch.Tensor:
         return self.projector(fused_img_patches)
+
+# class FusedMLPProjector(nn.Module):
+#     def __init__(self, fused_vision_dim: int, llm_dim: int, r: int = 16, num_specific: int = 3,
+#                  mlp_type: str = "fused-gelu-mlp") -> None:
+#         super().__init__()
+#         self.initial_projection_dim = fused_vision_dim * 4
+#         if mlp_type == "fused-gelu-mlp":
+#
+#             self.projector = nn.Sequential(  # 图片特征的总dim长度 -> llm_dim
+#                 nn.Linear(fused_vision_dim, self.initial_projection_dim, bias=True),
+#                 nn.GELU(),
+#                 nn.Linear(self.initial_projection_dim, llm_dim, bias=True),
+#                 nn.GELU(),
+#                 nn.Linear(llm_dim, llm_dim, bias=True),
+#             )
+#
+#             # 公共LoRA模块
+#             self.shared_lora = LoRA(llm_dim, llm_dim, r)
+#
+#             # 多个特定LoRA模块
+#             self.specific_loras = nn.ModuleList([LoRA(llm_dim, llm_dim, r) for _ in range(num_specific)])
+#         else:
+#             raise ValueError(f"Fused Projector with `{mlp_type = }` is not supported!")
+#
+#         self._initialize_weights()  # 使用torch.nn.init.xavier_normal_(m.weight)方法初始化权重。这种初始化方法适用于使用ReLU或GELU等非线性激活函数
+#
+#     def _initialize_weights(self):
+#         for m in self.projector:
+#             if isinstance(m, nn.Linear):
+#                 torch.nn.init.xavier_normal_(m.weight)
+#                 if m.bias is not None:
+#                     torch.nn.init.zeros_(m.bias) # 使用torch.nn.init.zeros_方法初始化偏置项
+#
+#     def forward(self, fused_img_patches: torch.Tensor) -> torch.Tensor:
+#         # 通过投影器
+#         projected_output = self.projector(fused_img_patches)
+#
+#         # 计算共享LoRA模块的输出
+#         #shared_output = self.shared_lora(fused_img_patches)
+#         shared_output = self.shared_lora(projected_output)
+#
+#         # 计算所有特定LoRA模块的输出，并与共享输出相加
+#         specific_outputs = [specific_lora(projected_output) + shared_output for specific_lora in self.specific_loras]
+#
+#         # 将所有特定LoRA模块的输出结合起来（例如求和）
+#         combined_output = sum(specific_outputs)
+#
+#         # 最终输出
+#         #output = projected_output + combined_output
+#         output = projected_output + combined_output
+#         return output
 
 
 # LDPv2 Projector: https://github.com/Meituan-AutoML/MobileVLM/blob/main/mobilevlm/model/vision_projector.py

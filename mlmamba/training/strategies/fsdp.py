@@ -127,7 +127,11 @@ class FSDPStrategy(TrainingStrategy):
 
             # Save on rank zero *only*
             if overwatch.is_rank_zero():
-                checkpoint_dir = run_dir / "checkpoints"
+                # checkpoint_dir = run_dir / "checkpoints"
+                # 指定保存路径
+                checkpoint_dir = Path("/home/disk2/ML-Mamba/checkpoints")
+                checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
                 if train_loss is None:
                     checkpoint_path = checkpoint_dir / f"step-{global_step:06d}-epoch-{epoch:02d}-loss=inf.pt"
                 else:
