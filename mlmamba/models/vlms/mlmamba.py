@@ -61,6 +61,57 @@ MAMBA_MODELS = {
      },
 }
 
+
+class LoRA(nn.Module):
+    def __init__(self, original_dim, lora_rank, target_dim):
+        super(LoRA, self).__init__()
+        self.lora_A = nn.Parameter(torch.randn(original_dim, lora_rank))
+        self.lora_B = nn.Parameter(torch.randn(lora_rank, target_dim))
+
+    def forward(self, x):
+        return x @ (self.lora_A @ self.lora_B)
+
+class SharedLoRA(nn.Module):
+    def __init__(self, dim, lora_rank):
+        super(SharedLoRA, self).__init__()
+        self.lora = LoRA(dim, lora_rank, dim)
+
+    def forward(self, x):
+        return self.lora(x)
+
+class SpecificLoRAAttention(nn.Module):
+    def __init__(self, dim, lora_rank):
+        super(SpecificLoRAAttention, self).__init__()
+        self.query = nn.Linear(dim, dim)
+        self.key = nn.Linear(dim, dim)
+        self.value = nn.Linear(dim, dim)
+        self.specific_lora_query = LoRA(dim, lora_rank, dim)
+        self.specific_lora_key = LoRA(dim, lora_rank, dim)
+        self.specific_lora_value = LoRA(dim, lora_rank, dim)
+
+    def forward(self, x, shared_output):
+        q = self.query(x) + shared_output + self.specific_lora_query(x)
+        k = self.key(x) + shared_output + self.specific_lora_key(x)
+        v = self.value(x) + shared_output + self.specific_lora_value(x)
+        scores = q @ k.transpose(-2, -1) / (x.size(-1) ** 0.5)
+        attn = torch.softmax(scores, dim=-1)
+        return attn @ v
+
+class ParallelLoRAAttention(nn.Module):
+    def __init__(self, dim, lora_rank, num_specific):
+        super(ParallelLoRAAttention, self).__init__()
+        self.shared_lora = SharedLoRA(dim, lora_rank)
+        self.specific_attentions = nn.ModuleList([
+            SpecificLoRAAttention(dim, lora_rank) for _ in range(num_specific)
+        ])
+
+    def forward(self, x):
+        shared_output = self.shared_lora(x)
+        outputs = [attention(x, shared_output) for attention in self.specific_attentions]
+        # Combine outputs (e.g., sum them up or concatenate)
+        combined_output = sum(outputs)  # or torch.cat(outputs, dim=-1) for concatenation
+        return combined_output
+
 class MLMambaVLM(VLM):
     def __init__(
         self,
@@ -70,6 +121,10 @@ class MLMambaVLM(VLM):
         llm_backbone_id: str = "",
         enable_mixed_precision_training: bool = True,
         arch_specifier: str = "gelu-mlp",
+        num_layers = 1,
+        num_heads = 8,
+        lora_rank = 16,
+        num_specific = 3,
     ) -> None:
         super().__init__(  # Assign values to visic_backbone and llm_backbone through the constructor of VLM base class
             "mlmamba",
@@ -92,7 +147,14 @@ class MLMambaVLM(VLM):
         self.bidirectional_mamba = Bidirectional_Mamba.from_pretrained(MAMBA_MODELS[llm_backbone_id]["hf_hub_path"],
                                                                        device=device, dtype=dtype)
 
-        #llm_embed_dim = llm_backbone.llm.backbone.embedding.embedding_dim
+        self.cross_attentions = nn.ModuleList([
+            nn.MultiheadAttention(embed_dim=llm_backbone.embed_dim, num_heads=num_heads, batch_first=True) for _ in
+            range(num_layers)
+        ])
+
+        self.parallel_attention = ParallelLoRAAttention(llm_backbone.embed_dim, lora_rank, num_specific)
+
+        llm_embed_dim = llm_backbone.llm.backbone.embedding.embedding_dim
 
         # Initialize Projection (Adapter) based on `arch_specifier`
         self.arch_specifier = arch_specifier
@@ -125,7 +187,7 @@ class MLMambaVLM(VLM):
             token_idx_list = self.llm_backbone.tokenizer.encode(trigger_string, add_special_tokens=False)
             assert len(token_idx_list) == 1, f'String "{trigger_string}" is tokenized as more than one token!'
             self.string2idx[trigger_string] = token_idx_list[0]
-            
+
         self.eos_token_id = self.llm_backbone.tokenizer.eos_token_id
 
     def mamba_generate(self, *args, **kwargs):
@@ -149,7 +211,7 @@ class MLMambaVLM(VLM):
 
     def allocate_inference_cache(self, *args, **kwargs):
         return self.llm_backbone.allocate_inference_cache(*args, **kwargs)
-       
+
     @classmethod
     def from_pretrained(
         cls,  # <class 'mlmamba.models.vlms.mlmamba.MLMambaVLM'>
@@ -182,7 +244,11 @@ class MLMambaVLM(VLM):
         vlm.llm_backbone.llm.load_state_dict(model_state_dict["llm_backbone"])
         vlm.mlp.load_state_dict(model_state_dict["mlp"])
         vlm.bidirectional_mamba.load_state_dict(model_state_dict["bidirectional_mamba"])
-        vlm.projector.load_state_dict(model_state_dict["projector"])
+
+        vlm.projector.load_state_dict(model_state_dict["projector"], strict=False)
+
+        #vlm.cross_attentions.load_state_dict(model_state_dict["cross_attentions"])
+        #vlm.parallel_attention.load_state_dict(model_state_dict["parallel_attention"])
 
 
         # Freeze Weights
@@ -229,6 +295,27 @@ class MLMambaVLM(VLM):
             self.mlp.requires_grad_(True)
             self.bidirectional_mamba.requires_grad_(True)
             self.projector.requires_grad_(True)
+
+            self.cross_attentions.requires_grad_(True)
+            self.parallel_attention.requires_grad_(True)
+
+            # 允许 self.projector 的所有参数进行训练
+
+
+            # 遍历 self.projector.projector 中的所有层
+            for layer in self.projector.projector:
+                if isinstance(layer, nn.Linear):
+                    for param in layer.parameters():
+                        param.requires_grad = False
+
+            # 确保 shared_lora 的参数可训练
+            for param in self.projector.shared_lora.parameters():
+                param.requires_grad = True
+
+            # 确保 specific_loras 的参数可训练
+            for lora in self.projector.specific_loras:
+                for param in lora.parameters():
+                    param.requires_grad = True
 
             # Add to `self.trainable_module_keys`
             self.trainable_module_keys = ["projector", "llm_backbone"]
@@ -279,7 +366,9 @@ class MLMambaVLM(VLM):
             self.llm_backbone.llm.load_state_dict(model_state_dict["llm_backbone"])
             self.mlp.load_state_dict(model_state_dict["mlp"])
             self.bidirectional_mamba.load_state_dict(model_state_dict["bidirectional_mamba"])
-            self.projector.load_state_dict(model_state_dict["projector"])
+            self.projector.load_state_dict(model_state_dict["projector"], strict=False)
+            #self.cross_attentions.load_state_dict(model_state_dict["cross_attentions"])
+            #self.parallel_attention.load_state_dict(model_state_dict["parallel_attention"])
 
             return
 
@@ -415,11 +504,24 @@ class MLMambaVLM(VLM):
         # projected_patch_embeddings = self.projector(patch_features)
         projected_patch_embeddings = self.mlp(patch_features)
         projected_patch_embeddings = self.bidirectional_mamba(projected_patch_embeddings)  # Bidirectional Mamba scanning
-        projected_patch_embeddings = self.projector(projected_patch_embeddings)
+
 
         # Get Input Embeddings from LLM Backbone :: [bsz, input_seq_len, llm_embed_dim]
         input_embeddings = self.llm_backbone.embed_input_ids(input_ids)  # Embedding with a word (B, L) ->(B, L, D)
+        # query = projected_patch_embeddings
+        # for layer, cross_attn in enumerate(self.cross_attentions):
+        #     attn_output, attn_weights = cross_attn(query, input_embeddings, input_embeddings)
+        #     print(f"Layer {layer + 1} output shape: {attn_output.shape}")
+        #
+        #     query = query + attn_output
+        #
 
+        # projected_patch_embeddings = query
+        #
+
+        # projected_patch_embeddings = self.parallel_attention(projected_patch_embeddings)
+
+        projected_patch_embeddings = self.projector(projected_patch_embeddings)
         # Build Multimodal Embeddings
         multimodal_embeddings = torch.cat(
             [

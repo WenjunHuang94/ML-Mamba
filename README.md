@@ -1,6 +1,6 @@
 <div align="center">
 
- <h2><img src="./assets/logo-2.png" style='width: 3%'> ML-Mamba: Efficient Multi-Modal Large Language Model Utilizing Mamba-2</h2>
+ <h2><img src="./assets/logo-2.png" style='width: 3%'> Enhancing Multimodal Large Language Models with Efficient Feature Alignment and Processing Using State Space Models</h2>
 
 
 <img src="./assets/arch.png" style='width: 75%'>
@@ -9,8 +9,7 @@
 </div>
 
 ## Introduction
-Multimodal Large Language Models (MLLMs) have attracted much attention for their multifunctionality. However, traditional Transformer architectures incur significant overhead due to their secondary computational complexity. To address this issue, we introduce ML-Mamba, a multimodal language model, which utilizes the latest and efficient Mamba-2 model for inference. Mamba-2 is known for its linear scalability and fast processing of long sequences. We replace the Transformer-based backbone with a pre-trained Mamba-2 model and explore methods for integrating 2D visual selective scanning mechanisms into multimodal learning while also trying various visual encoders and Mamba-2 model variants. Our extensive experiments in various multimodal benchmark tests demonstrate the competitive performance of ML-Mamba and highlight the potential of state space models in multimodal tasks. The experimental results show that: (1) We empirically explore the application of 2D visual selective scanning in multimodal learning and propose the Mamba-2 Scan Connector (MSC) to enhance representational capabilities. (2)  ML-Mamba achieves performance comparable to state-of-the-art methods such as TinyLaVA and MobileVLM v2 through its linear sequential modeling while faster inference speed; (3) Compared to multimodal models utilizing Mamba-1, the Mamba-2-based ML-Mamba exhibits superior inference performance and effectiveness.
-
+Multimodal Large Language Models (MLLMs) have demonstrated impressive capabilities in processing and understanding complex tasks involving both visual and textual data. However, their widespread application is often limited by the computational intensity required by traditional Transformer architectures, which can impede adaptability and efficiency, especially in diverse, multimodal environments. Existing Mamba-based multimodal models, while promising, often face challenges in achieving efficient feature alignment and maintaining computational efficiency, which can limit their performance in real-world applications. To address these challenges, we present ML-Mamba, an innovative model that significantly enhances multimodal learning by utilizing the Mamba-2 architecture. By integrating state space models with parameter-efficient fine-tuning methods, ML-Mamba offers linear scalability and the ability to process long sequences swiftly, effectively reducing reliance on Transformers. Our design incorporates a Mamba-Transformer block alongside shared-specialized Low-Rank Adaptation (LoRA) modules, optimizing feature alignment and minimizing the computational resources needed for task-specific adaptations. Extensive experimentation across various benchmarks highlights ML-Mamba's competitive performance, showcasing its enhanced inference speed and superior capability in aligning multimodal features. This work illustrates the promising potential of combining state space models with efficient fine-tuning strategies to create scalable, adaptable, and resource-efficient multimodal models.
 
 [**Installation**](#installation) | [**Usage**](#usage) | [**Training VLMs**](#training-vlms) | [**License**](#license)
 ---
@@ -139,8 +138,3 @@ The evaluation code for the ML-Mamba project is located in the `vlm-evaluation` 
 
 ### License
 This project is released under the [MIT License](LICENSE.txt)
-
-
-## Acknowledgement
-
-This repository is built based on [LLaVA](https://github.com/haotian-liu/LLaVA),  [Mamba](https://github.com/state-spaces/mamba), [Transformers](https://github.com/JLTastet/transformers/tree/mamba), and [Cobra](https://github.com/h-zhao1997/cobra) for their public code release.
