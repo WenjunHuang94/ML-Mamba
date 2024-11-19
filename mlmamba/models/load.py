@@ -72,6 +72,9 @@ def load(
         # )
         # Manually fill in the checkpoint path for ML-Mamba
         checkpoint_pt = '/home/hwj/program/ML-Mamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-checkpoint.pt'
+        #checkpoint_pt = '/home/disk2/ML-Mamba/checkpoints-1029/step-264646-epoch-00-loss=0.9026.pt'
+        #checkpoint_pt = '/home/hwj/program/ML-Mamba/ML-Mamba-1029.pth'
+        #checkpoint_pt = '/home/disk2/ML-Mamba/checkpoints/step-088286-epoch-00-loss=1.4806.pt'
 
     # Load Model Config from `config.json`
     with open(config_json, "r") as f:

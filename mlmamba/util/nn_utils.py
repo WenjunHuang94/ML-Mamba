@@ -201,19 +201,42 @@ class FusedLDPProjector(nn.Module):
 
 # 示例测试代码
 if __name__ == "__main__":
-    fused_vision_dim = 2176
-    llm_dim = 8704
-    model = FusedMLPProjector(fused_vision_dim, llm_dim)
+    # fused_vision_dim = 2176
+    # llm_dim = 8704
+    # model = FusedMLPProjector(fused_vision_dim, llm_dim)
+    #
+    # # 生成随机输入张量
+    # fused_img_patches = torch.randn(32, fused_vision_dim, device='cuda:0')  # 假设batch size为32
+    #
+    # # 将模型和输入数据移动到GPU
+    # model = model.cuda()
+    # fused_img_patches = fused_img_patches.cuda()
+    #
+    # try:
+    #     output = model(fused_img_patches)
+    #     print("Forward pass successful, output shape:", output.shape)
+    # except ValueError as e:
+    #     print(e)
 
-    # 生成随机输入张量
-    fused_img_patches = torch.randn(32, fused_vision_dim, device='cuda:0')  # 假设batch size为32
+    # Instantiate the model
+    fused_vision_dim = 512
+    llm_dim = 1024
+    r = 16
+    num_specific = 3
 
-    # 将模型和输入数据移动到GPU
-    model = model.cuda()
-    fused_img_patches = fused_img_patches.cuda()
+    model = FusedMLPProjector(fused_vision_dim, llm_dim, r, num_specific)
 
-    try:
-        output = model(fused_img_patches)
-        print("Forward pass successful, output shape:", output.shape)
-    except ValueError as e:
-        print(e)
+
+    # Function to count parameters
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+    # Calculate parameters
+    projector_params = count_parameters(model.projector)
+    shared_lora_params = count_parameters(model.shared_lora)
+    specific_loras_params = count_parameters(model.specific_loras)
+
+    print(f"Projector Parameters: {projector_params / 1e6:.2f}M")
+    print(f"Shared LoRA Parameters: {shared_lora_params / 1e6:.2f}M")
+    print(f"Specific LoRAs Parameters: {specific_loras_params / 1e6:.2f}M")

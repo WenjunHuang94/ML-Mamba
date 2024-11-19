@@ -122,7 +122,11 @@ class FSDPStrategy(TrainingStrategy):
                 "bidirectional_mamba": {k[len("bidirectional_mamba."):]: v for k, v in full_vlm_state_dict.items() if
                               k.startswith("bidirectional_mamba.")},
                 "projector": {k[len("projector."):]: v for k, v in full_vlm_state_dict.items() if
-                              k.startswith("projector.")}
+                              k.startswith("projector.")},
+                "cross_attentions": {k[len("cross_attentions."):]: v for k, v in full_vlm_state_dict.items() if
+                              k.startswith("cross_attentions.")},
+                "parallel_attention": {k[len("parallel_attention."):]: v for k, v in full_vlm_state_dict.items() if
+                              k.startswith("parallel_attention.")}
             }
 
             # Save on rank zero *only*

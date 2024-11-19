@@ -122,6 +122,7 @@ class MLMambaVLM(VLM):
         enable_mixed_precision_training: bool = True,
         arch_specifier: str = "gelu-mlp",
         num_layers = 1,
+        num_heads = 8,
         lora_rank = 16,
         num_specific = 3,
     ) -> None:
@@ -148,7 +149,7 @@ class MLMambaVLM(VLM):
 
         # # 定义多层交叉注意力模块
         # self.cross_attentions = nn.ModuleList([
-        #     nn.MultiheadAttention(embed_dim=llm_backbone.embed_dim, num_heads=llm_backbone.embed_dim, batch_first=True) for _ in
+        #     nn.MultiheadAttention(embed_dim=llm_backbone.embed_dim, num_heads=num_heads, batch_first=True) for _ in
         #     range(num_layers)
         # ])
         #
@@ -247,6 +248,9 @@ class MLMambaVLM(VLM):
 
         vlm.projector.load_state_dict(model_state_dict["projector"], strict=False)
 
+        #vlm.cross_attentions.load_state_dict(model_state_dict["cross_attentions"])
+        #vlm.parallel_attention.load_state_dict(model_state_dict["parallel_attention"])
+
 
         # Freeze Weights
         vlm.requires_grad_(False)
@@ -293,26 +297,26 @@ class MLMambaVLM(VLM):
             self.bidirectional_mamba.requires_grad_(True)
             self.projector.requires_grad_(True)
 
-            #self.cross_attentions.requires_grad_(False)
-            #self.parallel_attention.requires_grad_(False)
+            self.cross_attentions.requires_grad_(True)
+            self.parallel_attention.requires_grad_(True)
 
-            # # 允许 self.projector 的所有参数进行训练
+            # 允许 self.projector 的所有参数进行训练
 
 
-            # # 遍历 self.projector.projector 中的所有层
-            # for layer in self.projector.projector:
-            #     if isinstance(layer, nn.Linear):
-            #         for param in layer.parameters():
-            #             param.requires_grad = False
-            #
-            # # 确保 shared_lora 的参数可训练
-            # for param in self.projector.shared_lora.parameters():
-            #     param.requires_grad = False
-            #
-            # # 确保 specific_loras 的参数可训练
-            # for lora in self.projector.specific_loras:
-            #     for param in lora.parameters():
-            #         param.requires_grad = False
+            # 遍历 self.projector.projector 中的所有层
+            for layer in self.projector.projector:
+                if isinstance(layer, nn.Linear):
+                    for param in layer.parameters():
+                        param.requires_grad = False
+
+            # 确保 shared_lora 的参数可训练
+            for param in self.projector.shared_lora.parameters():
+                param.requires_grad = True
+
+            # 确保 specific_loras 的参数可训练
+            for lora in self.projector.specific_loras:
+                for param in lora.parameters():
+                    param.requires_grad = True
 
             # Add to `self.trainable_module_keys`
             self.trainable_module_keys = ["projector", "llm_backbone"]
@@ -365,6 +369,9 @@ class MLMambaVLM(VLM):
             self.bidirectional_mamba.load_state_dict(model_state_dict["bidirectional_mamba"])
 
             self.projector.load_state_dict(model_state_dict["projector"], strict=False)
+            #self.cross_attentions.load_state_dict(model_state_dict["cross_attentions"])
+            #self.parallel_attention.load_state_dict(model_state_dict["parallel_attention"])
+
 
             return
 
@@ -517,7 +524,7 @@ class MLMambaVLM(VLM):
         #
         # # 更新后的图片特征
         # projected_patch_embeddings = query
-
+        #
         # # 前向传播
         # projected_patch_embeddings = self.parallel_attention(projected_patch_embeddings)
 

@@ -141,8 +141,9 @@ def pretrain(cfg: PretrainConfig) -> None:
     cfg.stage = "finetune"  # finetune or align
 
     # Manually fill in the checkpoint path for ML-Mamba!!!
-    cfg.pretrained_checkpoint = '/home/hwj/program/ML-Mamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-checkpoint.pt'
+    #cfg.pretrained_checkpoint = '/home/hwj/program/ML-Mamba/scripts/runs/mlmamba+3b+stage-finetune+x7/checkpoints/latest-checkpoint.pt'
     #cfg.pretrained_checkpoint = '/home/disk2/ML-Mamba/checkpoints/step-032597-epoch-00-loss=1.6655.pt'
+    cfg.pretrained_checkpoint = '/home/disk2/ML-Mamba/checkpoints-1030/step-000001-epoch-00-loss=0.8129.pt'
 
     #cfg.max_steps = 100
 
